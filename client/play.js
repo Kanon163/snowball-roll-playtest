@@ -68,7 +68,7 @@ async function playSnow(T,host,makeScene){
     unsettled=null;syncRank();dirty=true;
     if(reason!=='leave'&&state.mode==='endless'){
       note((reason==='win'?'夺下冰雕':'本轮结束')+'　+'+receipt.awarded+' 积分');
-      race.nextSegment();state=race.snapshot();go('playing');
+      race.nextSegment();scene.reset();state=race.snapshot();go('playing');
     }else{
       if(reason==='leave'){race=null;state=null;scene.reset();}
       sound(0);zero();go(state?'ended':'result');

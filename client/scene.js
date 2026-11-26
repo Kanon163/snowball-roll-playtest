@@ -186,7 +186,7 @@ async function createSnowScene(T, host, catalog) {
     if(kind==='tree')winter.tree(g);
     templates[kind]=g;
   }
-  
+
   const backdrop=new T.Group();
   scene.add(backdrop);
   const lodgeGroup=new T.Group();lodge(lodgeGroup);

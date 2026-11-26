@@ -316,4 +316,3 @@ var createSnowRace = (() => {
 })();
 
 if (typeof module !== 'undefined') module.exports = createSnowRace;
-
