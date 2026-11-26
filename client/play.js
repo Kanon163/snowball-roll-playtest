@@ -269,8 +269,8 @@ async function playSnow(T,host,makeScene){
         if(elapsed<14||ball[4]<16){
           hint('拖动左侧摇杆移动',82,h-123);hint('点右侧闪避',w-63,h-105);
         }
-        if(ball[4]<state.goal)hint('撞物品变大，躲开比你大的雪球',w/2,59);
-        if(elapsed<14||ball[4]>=state.goal)hint('长到目标重量，撞碎大冰雕',w/2,ball[4]>=state.goal?h-29:88);
+        if(ball[4]<state.goal)hint('撞物品变大，躲开比你大的雪球',w/2,h-29);
+        if(ball[4]>=state.goal)hint('长到目标重量，撞碎大冰雕',w/2,h-29);
       }
     }
     if(page==='ended'||page==='result')renderResult();

@@ -4,6 +4,7 @@ const assetRoot=new URL('../client/',document.currentScript.src);
 const asset=path=>new URL(path,assetRoot).href;
 const host={
   screen:screenEl,w:stage.clientWidth,h:stage.clientHeight,ratio:devicePixelRatio,touch:navigator.maxTouchPoints>0,
+  village:SnowVillage,winter:WinterVillageVisuals,
   outfit:makeSnowOutfit,drawCollection:drawSnowCollection,
   catalog:()=>fetch(asset('catalog.json')).then(r=>r.json()),
   image:path=>new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>resolve(img);img.onerror=reject;img.src=asset(path);}),
