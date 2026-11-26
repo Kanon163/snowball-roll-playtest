@@ -3,7 +3,7 @@ async function createSnowScene(T, host, catalog) {
   const canvas = host.screen;
   const renderer = new T.WebGLRenderer({canvas, antialias: true, alpha: false});
   const matchRatio=Math.min(1.6,host.ratio);
-  const menuRatio=Math.min(host.ratio,3,Math.sqrt(3200000/(host.w*host.h)));
+  const menuRatio=Math.min(host.ratio,2.5,Math.sqrt(3200000/(host.w*host.h)));
   renderer.setPixelRatio(matchRatio);
   renderer.setSize(host.w, host.h, false);
   renderer.outputColorSpace = T.SRGBColorSpace;
@@ -12,22 +12,28 @@ async function createSnowScene(T, host, catalog) {
   const winter=new host.winter(T,field,renderer,host.layer,host.village);
   scene.background = new T.Color(0x324566);
   if(host.image){
-    const sky=new T.Texture(await host.image('art/twilight.jpg'));
-    sky.colorSpace=T.SRGBColorSpace;sky.offset.y=-.39;sky.needsUpdate=true;
+    const panorama=await host.image('art/twilight.jpg'),tint=host.layer();
+    tint.width=panorama.width;tint.height=panorama.height;
+    const skyPen=tint.getContext('2d');skyPen.drawImage(panorama,0,0);
+    skyPen.globalCompositeOperation='color';skyPen.fillStyle='rgba(85,129,190,.63)';skyPen.fillRect(0,0,tint.width,tint.height);
+    skyPen.globalCompositeOperation='source-over';
+    const sky=new T.CanvasTexture(tint);sky.colorSpace=T.SRGBColorSpace;sky.offset.y=-.39;
     scene.background=sky;
   }
-  scene.fog = new T.FogExp2(0x96a8cc, .014);
+  scene.fog = new T.FogExp2(0x889ec2, .0058);
   const camera = new T.PerspectiveCamera(58, host.w / host.h, .12, 950);
-  scene.add(new T.HemisphereLight(0xd6e3ff, 0x657190, 1.34));
+  const skyFill=new T.HemisphereLight(0xd6e3ff,0x657190,1.34);scene.add(skyFill);
   const moon = new T.DirectionalLight(0xffdeb5, 2.2);
   moon.position.set(-28, 45, -17);
   scene.add(moon);
   const cold = new T.DirectionalLight(0x94deff, 1.1);
   cold.position.set(18, 9, 12);
   scene.add(cold);
-  const portraitLight=new T.DirectionalLight(0xffefe0,2.15);
-  portraitLight.position.set(-2.5,4.2,35.5);portraitLight.target.position.set(0,2,29);
+  const portraitLight=new T.DirectionalLight(0xffdab0,3.1);
+  portraitLight.position.set(-2.6,5.4,36.8);portraitLight.target.position.set(0,2,29);
   portraitLight.visible=false;scene.add(portraitLight,portraitLight.target);
+  const faceBounce=new T.PointLight(0xffdfbe,18,10,2);faceBounce.position.set(.5,2.9,33.4);scene.add(faceBounce);
+  const rim=new T.DirectionalLight(0xffcc8b,1.0);rim.position.set(2.4,5,25);rim.target.position.set(0,2,29);scene.add(rim,rim.target);
   function paint(color) { return new T.MeshStandardMaterial({color, roughness:.84}); }
   function piece(parent, geom, mat, x, y, z, sx=1, sy=sx, sz=sx) {
     const m = new T.Mesh(geom,mat);
@@ -47,6 +53,26 @@ async function createSnowScene(T, host, catalog) {
   const terrain=piece(field,new T.PlaneGeometry(1,1),winter.snow,0,0,0);
   winter.ground(terrain);winter.environment();
   const playerLight=new T.PointLight(0xffdba4,14,12,2);field.add(playerLight);
+  const ridgeBackdrop=field.children[field.children.length-1].clone(true);scene.add(ridgeBackdrop);
+  const villageSnow=winter.snow.clone();
+  villageSnow.map=winter.snow.map.clone();villageSnow.normalMap=winter.snow.normalMap.clone();
+  for(const map of [villageSnow.map,villageSnow.normalMap]){map.repeat.set(32,32);map.needsUpdate=true;}
+  villageSnow.onBeforeCompile=shader=>{
+    shader.vertexShader='varying vec2 hallSnow;\n'+shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\n hallSnow=position.xy;');
+    shader.fragmentShader='varying vec2 hallSnow;\n'+shader.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
+      float line=hallSnow.x-1.-2.8*sin(hallSnow.y*.071);
+      float road=exp(-line*line*.035);
+      float rut=exp(-pow((abs(line)-1.35)*2.6,2.));
+      float wind=.5+.5*sin(hallSnow.y*.52+sin(hallSnow.x*.36)*2.);
+      diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.65,.74,.89),road*.39+rut*.42);
+      diffuseColor.rgb*=.82+.13*wind;
+      float dusk=exp(-.07*dot(hallSnow-vec2(-5.,-25.),hallSnow-vec2(-5.,-25.)))+
+                 exp(-.085*dot(hallSnow-vec2(6.,-16.),hallSnow-vec2(6.,-16.)));
+      diffuseColor.rgb+=dusk*vec3(.45,.18,.025);
+
+    `);
+  };
+  ground.material.dispose();ground.material=villageSnow;
   const nightFog=new T.FogExp2(0x253451,.0038),menuFog=scene.fog;
   piece(field,sphere,new T.MeshBasicMaterial({color:0xe7f1ff,fog:false}),-85,63,-190,6);
   const starPositions=[];
@@ -56,7 +82,11 @@ async function createSnowScene(T, host, catalog) {
   }
   const stars=new T.BufferGeometry();stars.setAttribute('position',new T.Float32BufferAttribute(starPositions,3));
   field.add(new T.Points(stars,new T.PointsMaterial({color:0xf1e7d3,size:1,sizeAttenuation:false,fog:false,transparent:true,opacity:.78})));
-  const contact=new T.MeshBasicMaterial({color:0x596e8b,transparent:true,opacity:.25,depthWrite:false});
+  const shadeCanvas=host.layer();shadeCanvas.width=shadeCanvas.height=64;
+  const sc=shadeCanvas.getContext('2d'),fade=sc.createRadialGradient(32,32,1,32,32,31);
+  fade.addColorStop(0,'rgba(45,45,65,.94)');fade.addColorStop(.55,'rgba(66,66,91,.56)');fade.addColorStop(1,'rgba(66,66,91,0)');
+  sc.fillStyle=fade;sc.fillRect(0,0,64,64);
+  const contact=new T.MeshBasicMaterial({map:new T.CanvasTexture(shadeCanvas),color:0x868599,transparent:true,opacity:.64,depthWrite:false});
   function shadow(parent,r) {
     const obj=piece(parent,disk,contact,0,.015,0,r, r,1);
     obj.rotation.x=-Math.PI/2;
@@ -101,59 +131,7 @@ async function createSnowScene(T, host, catalog) {
   const templates={};
   const glacier=new T.MeshStandardMaterial({color:0x9adbeb,roughness:.18,metalness:.22});
   const lamp=new T.MeshBasicMaterial({color:0xffbd69});
-  const bark=paint(0xbb8156), timber=paint(0x75503a), slate=paint(0x424961);
-  const boards=host.layer();boards.width=192;boards.height=192;
-  const brush=boards.getContext('2d');
-  brush.fillStyle='#e1bc8d';brush.fillRect(0,0,192,192);
-  for(let i=0;i<8;i++){
-    const y=i*24;brush.fillStyle=i%2?'#d4ac80':'#e3bd93';brush.fillRect(0,y,192,24);
-    brush.fillStyle='#86664e';brush.fillRect(0,y,192,2);
-    for(let j=0;j<4;j++){
-      brush.strokeStyle='rgba(90,59,45,.20)';brush.beginPath();
-      for(let x=0;x<=192;x+=4){const v=y+4+j*4+1.3*Math.sin(x*.065+i*3+j);if(!x)brush.moveTo(x,v);else brush.lineTo(x,v);}brush.stroke();
-    }
-  }
-  bark.map=new T.CanvasTexture(boards);bark.map.colorSpace=T.SRGBColorSpace;
-  const facade=new T.Shape();facade.moveTo(-2.5,0);facade.lineTo(2.5,0);facade.lineTo(0,1.45);facade.closePath();
-  const atticGeo=new T.ExtrudeGeometry(facade,{depth:4.64,bevelEnabled:false});
-  function lodge(g){
-    piece(g,cube,bark,0,1.37,0,5,2.73,4.7);
-    piece(g,cube,slate,0,.16,0,5.35,.31,4.99);
-    for(let i=0;i<2;i++){
-      const s=i===0?-1:1;
-      const roof=piece(g,cube,slate,s*1.53,3.38,0,3.57,.24,5.75);roof.rotation.z=-s*.52;
-      const cap=piece(g,cube,snow,s*1.53,3.56,0,3.69,.27,5.85);cap.rotation.z=-s*.52;
-      piece(g,cube,timber,s*2.3,1.37,2.39,.23,2.68,.19);
-      piece(g,cube,timber,s*1.55,1.65,2.39,1.28,1.27,.18);
-      piece(g,cube,lamp,s*1.55,1.67,2.50,1.05,.97,.08);
-      piece(g,cube,bark,s*1.55,1.67,2.55,.09,1.03,.09);
-      piece(g,cube,bark,s*1.55,1.67,2.55,1.08,.09,.09);
-      piece(g,cube,snow,s*1.55,1.09,2.57,1.38,.13,.32);
-      piece(g,cube,timber,s*2.51,1.65,.45,.12,1.22,1.35);
-      piece(g,cube,lamp,s*2.59,1.66,.45,.08,.96,1.10);
-    }
-    piece(g,atticGeo,bark,0,2.71,-2.32);
-    piece(g,cube,timber,0,1,2.38,.95,2.05,.18);
-    piece(g,sphere,gold,.29,1.04,2.49,.067);
-    for(let i=0;i<8;i++){
-      const x=(i-3.5)*.76;
-      piece(g,sphere,snow,x,4.40-Math.abs(x)*.57,2.89,.48,.15,.19);
-    }
-    piece(g,cube,slate,1.39,4.48,-1.45,.60,1.62,.62);
-    piece(g,cube,snow,1.39,5.31,-1.45,.73,.15,.75);
-  }
-  function bough(){
-    const rings=[[.08,.53],[.50,.22],[1,-.27],[.98,-.36],[.69,-.40]],pos=[],indices=[],n=40;
-    for(const [r,y] of rings)for(let i=0;i<n;i++){
-      const t=i*Math.PI*2/n,tip=.90+.10*Math.cos(t*9)+.045*Math.sin(t*3);
-      pos.push(r*tip*Math.cos(t),y-r*.075*Math.cos(t*9),r*tip*Math.sin(t));
-    }
-    for(let k=0;k<rings.length-1;k++)for(let i=0;i<n;i++){
-      const a=k*n+i,b=k*n+(i+1)%n;indices.push(a,b,a+n,b,b+n,a+n);
-    }
-    const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(pos,3));geo.setIndex(indices);geo.computeVertexNormals();return geo;
-  }
-  const branches=bough(),compactEye=new T.IcosahedronGeometry(1,0);
+  const compactEye=new T.IcosahedronGeometry(1,0);
   for(const kind of ['gift','fence','tree','snowman','house','palace','deer','tower','nutcracker','lamp']) {
     const g=new T.Group();
     shadow(g,({gift:.68,fence:1.2,tree:1.55,snowman:.58,house:5,palace:11,deer:.8,tower:3,nutcracker:.7,lamp:.4})[kind]);
@@ -189,15 +167,51 @@ async function createSnowScene(T, host, catalog) {
 
   const backdrop=new T.Group();
   scene.add(backdrop);
-  const lodgeGroup=new T.Group();lodge(lodgeGroup);
-  function cottage(parent,x,z,size,angle){
-    const cabin=lodgeGroup.clone();cabin.position.set(x,0,z);cabin.scale.setScalar(size);cabin.rotation.y=angle;parent.add(cabin);
+  const nearCabins=[];
+  function cabin(x,z,scale,angle){
+    const house=piece(backdrop,chalet,houseMat,x,0,z,scale);
+    house.rotation.y=angle;return house;
   }
-  cottage(backdrop,-7.9,18,1.42,.35);
-  cottage(backdrop,11,10,1.15,-.4);
-  for(let i=0;i<16;i++){
-    const tree=new T.Group();for(let j=0;j<5;j++){const r=1.5-j*.26;piece(tree,branches,pine,0,1+j*.57,0,r,1.2,r);piece(tree,branches,snow,0,1.16+j*.57,0,r*.94,1.19,r*.94);}tree.position.set((i%2?1:-1)*(9+(i*7)%29),0,15-(i*11)%45);
-    backdrop.add(tree);
+  nearCabins.push(cabin(-8,21,.86,.66),cabin(13,12,.97,-.53));
+  for(const [x,z,sc,a] of [[-13,-8,.82,.4],[14,-14,.86,-.2],[-8,-32,.82,.56],[2,-41,.72,.55],[12,-42,.78,-.27]])
+    cabin(x,z,sc,a);
+  const palaceMat=iceMat.clone();palaceMat.color.setHex(0xd4ecff);palaceMat.emissive.setHex(0x162e53);
+  palaceMat.metalness=.43;palaceMat.roughness=.20;palaceMat.color.setHex(0xa6d5f5);
+  const distantPalace=piece(backdrop,palace,palaceMat,6,-.3,-78,1.1);
+  for(const [x,z,sc] of [[-12,19,1.65],[-6,12,1.2],[7,7,1.55],[17,16,1.6],[21,1,1.35],
+    [-6,-20,1.4],[3,-22,1.1],[-19,-10,1.7],[19,-20,1.3],[-4,-42,.85],[14,-46,1.2]]){
+    const pineTree=templates.tree.clone();pineTree.position.set(x,0,z);pineTree.scale.setScalar(sc);backdrop.add(pineTree);
+  }
+  for(const [x,z] of [[-5,25],[6,16],[-4,-1],[4,-17],[-3,-28]]){
+    const light=templates.lamp.clone();light.position.set(x,0,z);backdrop.add(light);
+  }
+  for(let i=0;i<10;i++){
+    const fence=templates.fence.clone();fence.position.set(-5+Math.sin(i*.25),0,21-i*2.4);
+    fence.rotation.y=Math.PI/2;backdrop.add(fence);
+  }
+  // 前景模型保留原工程的原始 UV、法线和索引，低精度版本用于资源准备期间。
+  async function loadPortraitModels(){
+    await host.preparePack('villagepack');
+    async function geometry(name,uv){
+      const bytes=await host.read('villagepack/'+name+'.mesh'),view=new DataView(bytes),vertices=view.getUint32(0,true);
+      const g=new T.BufferGeometry(),indices=view.getUint32(4,true);
+      g.setAttribute('position',new T.BufferAttribute(new Float32Array(bytes,8,vertices*3),3));
+      g.setAttribute('normal',new T.BufferAttribute(new Float32Array(bytes,8+vertices*12,vertices*3),3));
+      if(uv)g.setAttribute('uv',new T.BufferAttribute(new Float32Array(bytes,8+vertices*24,vertices*2),2));
+      g.setIndex(new T.BufferAttribute(new Uint16Array(bytes,8+vertices*(uv?32:24),indices),1));return g;
+    }
+    const [near,castle,textureImage]=await Promise.all([geometry('house',true),geometry('palace',false),host.image('villagepack/house.jpg')]);
+    const map=new T.Texture(textureImage);map.flipY=false;map.colorSpace=T.SRGBColorSpace;map.needsUpdate=true;
+    const material=houseMat.clone();material.map=material.emissiveMap=map;material.onBeforeCompile=houseMat.onBeforeCompile;
+    nearCabins.forEach(h=>{h.geometry=near;h.material=material;});
+    const heights=castle.attributes.position,colors=[];
+    for(let i=0;i<heights.count;i++){
+      const normal=castle.attributes.normal,y=heights.getY(i),g=Math.max(0,normal.getY(i));
+      const color=new T.Color(0x5184b8).lerp(new T.Color(0xf4effa),.16+.62*g+.12*Math.abs(Math.sin(y*1.7)));
+      colors.push(color.r,color.g,color.b);
+    }
+    castle.setAttribute('color',new T.Float32BufferAttribute(colors,3));
+    distantPalace.geometry=castle;distantPalace.material.vertexColors=true;distantPalace.material.needsUpdate=true;
   }
   // 静态装饰按几何和材质合批，手机每帧不必为每块木板单独绘制。
   function batchDecor(group){
@@ -215,7 +229,10 @@ async function createSnowScene(T, host, catalog) {
       matrices.forEach((m,i)=>batch.setMatrixAt(i,m));group.add(batch);
     }
   }
-  batchDecor(backdrop);
+  const scenicDetails=new T.Group();backdrop.add(scenicDetails);
+  for(const actor of [...backdrop.children])if(actor!==scenicDetails&&actor!==distantPalace&&!nearCabins.includes(actor))scenicDetails.add(actor);
+  batchDecor(scenicDetails);
+  loadPortraitModels().catch(()=>{});
   const flakeCount=180, flakePositions=new Float32Array(flakeCount*3);
   for(let i=0;i<flakeCount;i++) {
     flakePositions[i*3]=(Math.random()-.5)*54;
@@ -304,7 +321,7 @@ async function createSnowScene(T, host, catalog) {
     if(lamps.length)for(const item of lamps)item.alive=!gone.has(item.id);
     lastHidden=gone;
   }
-  const balls=[0xf08a56,0x3a93c6].map((tint,slot)=>{
+  const balls=Array.from({length:16},(_,slot)=>{
     const root=new T.Group(), roll=new T.Group(), head=new T.Group();
     scene.add(root);root.add(roll);roll.add(head);
     const shell=new T.IcosahedronGeometry(1,4);
@@ -323,44 +340,45 @@ async function createSnowScene(T, host, catalog) {
     };
     piece(roll,shell,frost,0,0,0);
     for(const x of [-.23,.23]){
-      piece(head,sphere,coal,x,.38,.9,.079);
-      piece(head,sphere,snow,x-.019,.404,.968,.016);
+      piece(head,sphere,coal,x,.38,.905,.09,.106,.077);
+      piece(head,sphere,snow,x-.027,.411,.979,.024);
     }
-    for(const x of [-.39,.39])piece(head,sphere,pink,x,.20,.9,.105,.046,.045);
-    const nose=piece(head,cone,orange,0,.25,1,.10,.38,.10);
+    for(const x of [-.39,.39])piece(head,sphere,pink,x,.22,.896,.095,.043,.020);
+    const nose=piece(head,cone,orange,0,.31,1.04,.117,.67,.117);
     nose.rotation.x=Math.PI/2;
-    for(let j=0;j<5;j++){const x=(j-2)*.13;piece(head,sphere,coal,x,.05-x*x,.99,.035);}
+    piece(head,sphere,paint(0x743c40),0,.139,1.009,.143,.087,.047);
+    piece(head,sphere,paint(0xf08a88),.015,.104,1.045,.084,.034,.014);
+    for(const side of [-1,1]){const brow=piece(head,sphere,coal,side*.26,.55,.798,.09,.023,.028);brow.rotation.z=-side*.18;}
     const shade=shadow(scene,1);
-    return {root,roll,head,shade,wear:null,gear:null,last:null,slot};
+    return {root,roll,head,shade,frost,wear:null,gear:null,last:null,slot};
   });
   // 两张纹理都直接绘制到游戏上屏 WebGL，不读回开放域数据。
   const shared=host.ranking&&host.ranking.canvas;
-  let rivalSprite=null,rankLabel=null,rankScene=null,rankCamera=null,refreshAt=0;
+  let rankScene=null,rankCamera=null,refreshAt=0;
+  const cardSprites=[],nameMeshes=[],maps=[];
   if(shared){
-    function section(offset,height){
-      const map=new T.Texture(shared);
-      map.colorSpace=T.SRGBColorSpace;map.generateMipmaps=false;
-      map.minFilter=map.magFilter=T.LinearFilter;map.offset.y=offset;map.repeat.y=height;map.needsUpdate=true;
-      return map;
+    const atlas=new T.Texture(shared);atlas.colorSpace=T.SRGBColorSpace;atlas.generateMipmaps=false;
+    atlas.minFilter=atlas.magFilter=T.LinearFilter;
+    function section(slot,label){
+      const m=atlas.clone(),x=slot%4,y=Math.floor(slot/4);
+      m.offset.set(x/4,(3-y)/4+(label?.203125:0));m.repeat.set(.25,label?.046875:.1875);
+      m.needsUpdate=true;maps.push(m);return m;
     }
-    rivalSprite=new T.Sprite(new T.SpriteMaterial({map:section(0,.75),transparent:true,depthWrite:false,toneMapped:false}));
-    rivalSprite.center.set(.5,.445);rivalSprite.scale.set(4.4,3.3,1);
-    balls[1].root.add(rivalSprite);
-    rankScene=new T.Scene();rankCamera=new T.OrthographicCamera(0,host.w,host.h,0,.1,10);
-    rankCamera.position.z=1;
-    rankLabel=new T.Mesh(new T.PlaneGeometry(1,1),new T.MeshBasicMaterial({
-      map:section(.75,.25),transparent:true,depthTest:false,depthWrite:false,toneMapped:false
-    }));
-    rankScene.add(rankLabel);
-    const safe=host.safe||{right:host.w,top:0},unit=Math.min(host.w/700,host.h/335);
-    rankLabel.scale.set(140*unit,35*unit,1);
-    rankLabel.position.set(Math.min(host.w,safe.right)-80*unit,host.h-safe.top-76*unit,0);
+    rankScene=new T.Scene();rankCamera=new T.OrthographicCamera(0,host.w,host.h,0,.1,10);rankCamera.position.z=1;
+    balls.forEach((ball,i)=>{
+      const name=new T.Mesh(new T.PlaneGeometry(1,1),new T.MeshBasicMaterial({map:section(i,true),transparent:true,depthTest:false,depthWrite:false,toneMapped:false}));
+      name.visible=false;nameMeshes.push(name);rankScene.add(name);
+      if(i){const sprite=new T.Sprite(new T.SpriteMaterial({map:section(i,false),transparent:true,depthWrite:false,toneMapped:false}));
+        sprite.center.set(.5,.445);sprite.scale.set(4.4,3.3,1);ball.root.add(sprite);cardSprites.push(sprite);}
+    });
   }
-  function drawRankLabel(showSelf){
-    if(!rankLabel)return;
-    const unit=Math.min(host.w/700,host.h/335),safe=host.safe||{right:host.w,top:0};
-    rankLabel.position.set(Math.min(host.w,safe.right)-80*unit,host.h-safe.top-(showSelf?45:76)*unit,0);
-    if(showSelf&&elapsed>=refreshAt){refreshAt=elapsed+.12;rankLabel.material.map.needsUpdate=true;}
+  function drawRankLabel(showSelf,labels){
+    if(!rankScene)return;
+    for(const mesh of nameMeshes)mesh.visible=false;
+    const unit=Math.min(host.w/700,host.h/335);
+    const list=showSelf?[{slot:0,x:host.w-78*unit,y:57*unit,w:140*unit,h:25*unit}]:labels;
+    for(const l of list||[]){const mesh=nameMeshes[l.slot];if(!mesh)continue;
+      mesh.visible=true;mesh.position.set(l.x,host.h-l.y,0);mesh.scale.set(l.w,l.h,1);}
     renderer.render(rankScene,rankCamera);
   }
   const defaultItem={id:0,style:'scarf',color:'#bd4339',accent:'#f5d4a5'};
@@ -429,26 +447,27 @@ async function createSnowScene(T, host, catalog) {
   let elapsed=0;
   function draw(state,slot,dt,view) {
     const portrait=view.page==='shop';
-    const targetRatio=portrait?menuRatio:matchRatio;
+    const targetRatio=!state?menuRatio:matchRatio;
     if(renderer.getPixelRatio()!==targetRatio)renderer.setPixelRatio(targetRatio);
-    portraitLight.visible=portrait;
+    portraitLight.visible=faceBounce.visible=rim.visible=ridgeBackdrop.visible=!state;
+    balls[0].frost.emissive.setHex(state?0x000000:0x6d5644);
+    balls[0].frost.emissiveIntensity=state?0:.43;
+    skyFill.groundColor.setHex(state?0x657190:0xffceaa);skyFill.intensity=state?1.34:1.78;
     elapsed+=dt;
     backdrop.visible=ground.visible=!state;field.visible=!!state;
     scene.fog=state?nightFog:menuFog;
-    renderer.toneMapping=state?T.ACESFilmicToneMapping:T.NoToneMapping;
+    renderer.toneMapping=T.ACESFilmicToneMapping;
     renderer.toneMappingExposure=1.1;
     moon.color.setHex(state?0xb7ccff:0xffdeb5);moon.intensity=state?1.35:2.2;
     cold.intensity=state?.3:1.1;
-    const useCard=!!(rivalSprite&&state&&!state.tutorial);
-    if(rivalSprite){
-      rivalSprite.visible=useCard;balls[1].roll.visible=balls[1].head.visible=!useCard;
-      if(useCard&&elapsed>=refreshAt){
-        refreshAt=elapsed+.1;rivalSprite.material.map.needsUpdate=true;rankLabel.material.map.needsUpdate=true;
-      }
+    const useCard=!!(shared&&state&&!state.tutorial);
+    cardSprites.forEach((sprite,i)=>{sprite.visible=useCard;balls[i+1].roll.visible=!useCard;});
+    if(shared&&(useCard||view.page==='rank')&&elapsed>=refreshAt){
+      refreshAt=elapsed+.15;for(const m of maps)m.needsUpdate=true;
     }
     if(state){
       hide(state.hidden);
-      for(let i=0;i<2;i++){
+      for(let i=0;i<state.balls.length;i++){
         const [x,z,angle,speed,mass,,boost]=state.balls[i], b=balls[i], r=.8*Math.cbrt(mass/12);
         b.root.visible=b.shade.visible=state.present[i];
         if(!state.present[i]){b.last=null;continue;}
@@ -483,14 +502,14 @@ async function createSnowScene(T, host, catalog) {
       fresh=false;
     } else {
       const b=balls[0],shop=view.page==='shop';
-      balls[1].root.visible=balls[1].shade.visible=false;
+      for(const other of balls.slice(1))other.root.visible=other.shade.visible=false;
       b.root.visible=b.shade.visible=true;equip(b,view.itemId||0);
       b.root.scale.setScalar(2);b.root.position.set(0,1.99+.035*Math.sin(elapsed*2.5),29);
       b.roll.rotation.set(.035*Math.sin(elapsed*1.2),0,.035*Math.sin(elapsed*1.8));
-      b.head.rotation.y=.12+.27*Math.sin(elapsed*.8);
-      b.shade.position.set(0,.02,29);b.shade.scale.set(2.2,1.9,1);
-      const offset=(shop ? .636 : .39)*(host.w/host.h)*4.22;
-      camera.position.set(offset,3.7,38.1);camera.lookAt(offset,shop?1.4:1.9,29);
+      b.head.rotation.y=.94+.12*Math.sin(elapsed*.85);
+      b.shade.rotation.set(-Math.PI/2,0,0);b.shade.position.set(0,.012,29);b.shade.scale.set(2.55,2.3,1);
+      const offset=(shop?.636:.38)*(host.w/host.h)*4.0;
+      camera.position.set(offset,3.05,shop?37.8:37.4);camera.lookAt(offset,shop?1.48:1.65,29);
     }
     flakes.position.set(camera.position.x,state?host.village.height(camera.position.x,camera.position.z):0,camera.position.z-12);
     for(let i=0;i<flakeCount;i++){
@@ -521,8 +540,10 @@ async function createSnowScene(T, host, catalog) {
     return {edge,x:(marker.x+1)*host.w*.5,y:(1-marker.y)*host.h*.5,angle:Math.atan2(-pos.z,-pos.x),distance:Math.round(Math.hypot(pos.x,pos.z))};
   }
   function opponentMarker(slot){
-    const own=balls[slot].root.position, enemy=balls[1-slot].root.position;
-    marker.copy(enemy);marker.y+=balls[1-slot].root.scale.x+1;
+    const own=balls[slot].root.position;let enemy=null;
+    for(const b of balls)if(b.slot!==slot&&b.root.visible&&(!enemy||own.distanceToSquared(b.root.position)<own.distanceToSquared(enemy)))enemy=b.root.position;
+    if(!enemy)enemy=own;
+    marker.copy(enemy);marker.y+=2.2;
     marker.project(camera);
     const distance=Math.round(Math.hypot(enemy.x-own.x,enemy.z-own.z));
     if(marker.z>0&&marker.z<1&&Math.abs(marker.x)<.81&&Math.abs(marker.y)<.65){

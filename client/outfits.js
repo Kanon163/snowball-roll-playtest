@@ -8,13 +8,15 @@ function makeSnowOutfit(T, item, layer) {
   }
   const cloth=material(main), accent=material(trim), brass=material('#dda75b',.5);
   const swatch=layer();
-  swatch.width=96;swatch.height=64;
+  swatch.width=192;swatch.height=96;
   const c=swatch.getContext('2d');
-  c.fillStyle=main;c.fillRect(0,0,96,64);
-  c.fillStyle=trim;c.fillRect(0,0,12,64);c.fillRect(18,0,4,64);
-  c.lineWidth=1.4;c.strokeStyle='rgba(255,255,255,.32)';
-  for(let y=-2;y<66;y+=6)for(let x=-3;x<96;x+=6){
-    c.beginPath();c.moveTo(x,y);c.lineTo(x+3,y+4);c.lineTo(x+5,y);c.stroke();
+  c.fillStyle=main;c.fillRect(0,0,192,96);c.fillStyle=trim;c.fillRect(0,0,32,96);c.fillRect(41,0,9,96);
+  c.lineCap='round';
+  for(let y=-9;y<104;y+=8)for(let x=-7;x<199;x+=9){
+    c.strokeStyle='rgba(37,17,21,.38)';c.lineWidth=3.3;
+    c.beginPath();c.moveTo(x-3,y);c.lineTo(x,y+5);c.lineTo(x+3.5,y);c.stroke();
+    c.strokeStyle='rgba(255,244,220,.58)';c.lineWidth=1.8;
+    c.beginPath();c.moveTo(x-2.5,y-.5);c.lineTo(x,y+3.5);c.stroke();
   }
   const textile=new T.CanvasTexture(swatch);
   textile.colorSpace=T.SRGBColorSpace;textile.wrapS=T.RepeatWrapping;textile.repeat.x=5;

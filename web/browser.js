@@ -2,7 +2,20 @@ const screenEl=document.querySelector('canvas'), loadEl=document.querySelector('
 const stage=document.querySelector('#stage');
 const assetRoot=new URL('../client/',document.currentScript.src);
 const asset=path=>new URL(path,assetRoot).href;
+let audioCtx=null;
+function context(){
+  const C=window.AudioContext||window.webkitAudioContext;
+  if(C&&!audioCtx)audioCtx=new C();
+  return audioCtx;
+}
 const host={
+  previewRewards:true,preparePack:()=>Promise.resolve(),guide:createSnowGuide(),makeAudio:createSnowSoundscape,
+  pref:{get:k=>JSON.parse(localStorage.getItem('snow-'+k)||'null'),set:(k,v)=>localStorage.setItem('snow-'+k,JSON.stringify(v))},
+  async loadTypeface(){
+    const f=new FontFace('SnowDisplay','url("'+asset('art/snow-display.ttf')+'")');
+    await f.load();document.fonts.add(f);return 'SnowDisplay';
+  },
+  wakeAudio(){const a=context();if(a&&a.state!=='running')a.resume().catch(()=>{});},
   screen:screenEl,w:stage.clientWidth,h:stage.clientHeight,ratio:devicePixelRatio,touch:navigator.maxTouchPoints>0,
   village:SnowVillage,winter:WinterVillageVisuals,
   outfit:makeSnowOutfit,drawCollection:drawSnowCollection,
@@ -13,8 +26,22 @@ const host={
   onShow(fn){addEventListener('focus',()=>fn(false));document.addEventListener('visibilitychange',()=>{if(!document.hidden)fn(false);});},
   layer:()=>document.createElement('canvas'),frame:cb=>requestAnimationFrame(cb),
   sound(path,loop){
-    const a=new Audio(asset(path));a.loop=loop;
-    return {set volume(n){a.volume=n;},play(){if(!loop)a.currentTime=0;a.play().catch(()=>{});},pause(){a.pause();}};
+    let source=null,level=1,wanted=0,offset=0,started=0,rate=1;
+    const audio=context();if(!audio)return null;
+    const gain=audio.createGain();gain.connect(audio.destination);
+    const buffer=fetch(asset(path)).then(r=>{if(!r.ok)throw Error(path);return r.arrayBuffer();}).then(b=>audio.decodeAudioData(b)).catch(()=>null);
+    function stop(remember){if(source){if(remember)offset+=(audio.currentTime-started)*rate;
+      source.onended=null;try{source.stop();}catch(_){}source.disconnect();source=null;}}
+    return {
+      set volume(v){level=v;gain.gain.setTargetAtTime(v,audio.currentTime,.04);},
+      set playbackRate(v){rate=v;if(source)source.playbackRate.value=v;},
+      play(){const id=++wanted;buffer.then(b=>{if(!b||id!==wanted)return;stop(false);
+        source=audio.createBufferSource();source.buffer=b;source.loop=loop;source.playbackRate.value=rate;source.connect(gain);
+        gain.gain.value=level;started=audio.currentTime;source.start(0,loop?offset%b.duration:0);
+        source.onended=()=>{if(source){source.disconnect();source=null;}};
+      });},
+      pause(){wanted++;stop(loop);}
+    };
   },
   read:async path=>{
     const r=await fetch(asset(path));

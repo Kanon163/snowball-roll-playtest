@@ -11,6 +11,12 @@ var createSnowRace = (() => {
   };
   const TUTORIAL_HEADSTART = 45;
   const TAU = Math.PI * 2;
+  const PARTICIPANTS = 16;
+  const CRUSH_RATIO = 1.3;
+  const CRUSH_LIMIT = 2;
+  const REVIVE_LIMIT = 2;
+  const REVIVE_PROTECTION = 4;
+  const PURSUIT_RADIUS = 41;
 
   const village=typeof module==='undefined'?SnowVillage:require('./village.js');
   const PROPS=village.layout(),cells=new Map();
@@ -20,8 +26,8 @@ var createSnowRace = (() => {
     if(!cells.has(key))cells.set(key,[]);
     cells.get(key).push(index);
   });
-  function around(ball){
-    const radius=ball.radius+12, result=[];
+  function around(ball, radius = ball.radius + 12){
+    const result=[];
     for(let x=Math.floor((ball.x-radius)/18);x<=Math.floor((ball.x+radius)/18);x++)
       for(let z=Math.floor((ball.z-radius)/18);z<=Math.floor((ball.z+radius)/18);z++){
         const list=cells.get(x+','+z);if(list)result.push(...list);
@@ -40,9 +46,11 @@ var createSnowRace = (() => {
     constructor(slot, equipped = 0) {
       this.slot = slot;
       this.equipped = equipped;
-      this.x = slot === 0 ? 0 : 13;
-      this.z = village.spawnRadius;
-      this.angle = -Math.PI / 2;
+      const startAngle = slot * TAU / PARTICIPANTS;
+      // 保留一只近处对手，其余参赛者分布在村外围。
+      this.x = slot === 1 ? 13 : Math.sin(startAngle) * (village.spawnRadius - 4);
+      this.z = slot < 2 ? village.spawnRadius : Math.cos(startAngle) * (village.spawnRadius - 4);
+      this.angle = Math.atan2(-this.z, -this.x);
       this.speed = 0;
       this.mass = 12;
       this.energy = 100;
@@ -56,6 +64,7 @@ var createSnowRace = (() => {
       this.immune = 0;
       this.dodgeCooldown = 0;
       this.lastInput = 0;
+      this.target = null;
     }
 
     get radius() {
@@ -118,30 +127,42 @@ var createSnowRace = (() => {
     return Date.now().toString(36) + '-' + runSequence.toString(36) + '-' + Math.random().toString(36).slice(2);
   }
 
-  return function createSnowRace(requestedMode = 'quick', tutorial = false, equipped = 0) {
+  return function createSnowRace(requestedMode = 'quick', tutorial = false, equipped = 0, opponentGear = []) {
     tutorial = Boolean(tutorial);
     const mode = !tutorial && requestedMode === 'endless' ? 'endless' : 'quick';
     const run = makeRunId();
     const removed = new Map();
-    const wins = [0, 0];
-    let balls = [new Ball(0, equipped), new Ball(1)];
+    const wins = Array(PARTICIPANTS).fill(0);
+    let balls = Array.from({length: PARTICIPANTS}, (_, slot) =>
+      new Ball(slot, slot === 0 ? equipped : opponentGear[slot - 1] || 0));
     let phase = 'playing', reason = '', time = 0, contacts = 0;
-    let segment = 0, segmentWinner = null, botTarget = null, priorActive = 0;
+    let segment = 0, segmentWinner = null, priorActive = 0;
+    let crushes = 0, revives = 0, defeatCount = 0, defeatId = null;
 
     function threshold() {
       return mode === 'quick' ? 120 : Math.min(600, 180 + segment * 40);
     }
 
     function botRestricted(ball) {
-      return tutorial && ball.slot === 1 && time < TUTORIAL_HEADSTART;
+      return tutorial && ball.slot !== 0 && time < TUTORIAL_HEADSTART;
+    }
+
+    function canRevive() {
+      return defeatId !== null && revives < REVIVE_LIMIT;
     }
 
     function snapshot() {
+      const ranking = balls.slice().sort((a, b) => b.mass - a.mass || a.slot - b.slot)
+        .map((ball, index) => ({
+          slot: ball.slot, rank: index + 1, mass: round(ball.mass, 1000), gear: ball.equipped
+        }));
       return {
         type: 'state', phase, reason, time: round(time, 100), contacts,
-        balls: balls.map(ball => ball.state()), hidden: Array.from(removed.keys()), present: [true, true],
+        balls: balls.map(ball => ball.state()), hidden: Array.from(removed.keys()), present: balls.map(() => true),
         gear: balls.map(ball => ball.equipped), mode, private: tutorial, tutorial,
-        room: '', host: 0, wins: wins.slice(), segment, goal: threshold(), winner: segmentWinner
+        room: '', host: 0, wins: wins.slice(), segment, goal: threshold(), winner: segmentWinner,
+        ranking, participantCount: balls.length, crushes, revives, canRevive: canRevive(),
+        defeatedByCrush: defeatId !== null, defeatId
       };
     }
 
@@ -156,26 +177,41 @@ var createSnowRace = (() => {
     }
 
     function nearestCollectible(ball) {
-      let target = 0, distance = Infinity;
-      for (let index = 1; index < PROPS.length; index++) {
-        const [kind, x, z] = PROPS[index];
-        if (removed.has(index) || RULES[kind][0] > ball.mass) continue;
-        const candidate = Math.hypot(ball.x - x, ball.z - z);
-        if (candidate < distance) {
-          target = index;
-          distance = candidate;
+      for (const radius of [24, 64, Infinity]) {
+        let target = null, distance = radius * radius;
+        const candidates = Number.isFinite(radius) ? around(ball, radius) : PROPS.keys();
+        for (const index of candidates) {
+          if (index === 0 || removed.has(index)) continue;
+          const [kind, x, z] = PROPS[index];
+          if (RULES[kind][0] > ball.mass) continue;
+          const candidate = (ball.x - x) ** 2 + (ball.z - z) ** 2;
+          if (candidate < distance || (candidate === distance && index < target)) {
+            target = index;
+            distance = candidate;
+          }
+        }
+        if (target !== null) return target;
+      }
+      return 0;
+    }
+
+    function choosePrey(ball) {
+      if (ball.immune > 0 || botRestricted(ball)) return null;
+      let target = null, best = Infinity;
+      for (const rival of balls) {
+        if (ball === rival || rival.immune > 0 || ball.mass <= CRUSH_RATIO * rival.mass) continue;
+        const distance = (ball.x - rival.x) ** 2 + (ball.z - rival.z) ** 2;
+        if (distance > PURSUIT_RADIUS ** 2) continue;
+        const score = distance / Math.min(1.7, ball.mass / rival.mass);
+        if (score < best) {
+          target = rival;
+          best = score;
         }
       }
       return target;
     }
 
-    function steerBot() {
-      const ball = balls[1];
-      const goal = botRestricted(ball) ? Infinity : threshold();
-      if (botTarget === null || removed.has(botTarget) || ball.mass >= goal) {
-        botTarget = ball.mass >= goal && !removed.has(0) ? 0 : nearestCollectible(ball);
-      }
-      const [, x, z] = PROPS[botTarget];
+    function aimBot(ball, x, z, goal, pursuit) {
       const dx = x - ball.x, dz = z - ball.z;
       const length = Math.max(.01, Math.hypot(dx, dz));
       let ux = dx / length, uz = dz / length;
@@ -191,9 +227,30 @@ var createSnowRace = (() => {
           break;
         }
       }
-      ball.dx = ux;
-      ball.dz = uz;
+      const alignment = Math.cos(ball.angle) * ux + Math.sin(ball.angle) * uz;
+      const power = pursuit && length < 13 ? clamp(.55 + alignment * .55, .32, 1) : 1;
+      ball.dx = ux * power;
+      ball.dz = uz * power;
       ball.lastInput = time;
+    }
+
+    function steerBot(ball) {
+      const goal = botRestricted(ball) ? Infinity : threshold();
+      const canClaim = ball.mass >= goal && !removed.has(0);
+      const nearSculpture = ball.x ** 2 + ball.z ** 2 < 32 ** 2;
+      const prey = canClaim && nearSculpture ? null : choosePrey(ball);
+      if (prey) {
+        const lead = Math.min(.55, Math.hypot(ball.x - prey.x, ball.z - prey.z) / 22);
+        aimBot(ball, prey.x + Math.cos(prey.angle) * prey.speed * lead,
+          prey.z + Math.sin(prey.angle) * prey.speed * lead, goal, true);
+        return;
+      }
+      if (canClaim) ball.target = 0;
+      else if (ball.target === null || ball.target === 0 || removed.has(ball.target)) {
+        ball.target = nearestCollectible(ball);
+      }
+      const [, x, z] = PROPS[ball.target];
+      aimBot(ball, x, z, goal, false);
     }
 
     function respawnProps() {
@@ -245,11 +302,11 @@ var createSnowRace = (() => {
       return won;
     }
 
-    function collideBalls() {
-      const [a, b] = balls;
+    function collidePair(a, b) {
       const dx = b.x - a.x, dz = b.z - a.z;
-      const distance = Math.hypot(dx, dz), radius = a.radius + b.radius;
-      if (distance >= radius) return;
+      const radius = a.radius + b.radius, distanceSq = dx * dx + dz * dz;
+      if (distanceSq >= radius * radius) return null;
+      const distance = Math.sqrt(distanceSq);
       const nx = distance ? dx / distance : 1;
       const nz = distance ? dz / distance : 0;
       const gap = (radius - distance + .02) / 2;
@@ -258,7 +315,9 @@ var createSnowRace = (() => {
       b.x += nx * gap;
       b.z += nz * gap;
       const [big, small] = a.mass >= b.mass ? [a, b] : [b, a];
-      if (Math.max(a.immune, b.immune) === 0 && big.mass > 1.3 * small.mass && !botRestricted(big)) {
+      let defeatsPlayer = false;
+      if (Math.max(a.immune, b.immune) === 0 && big.mass > CRUSH_RATIO * small.mass && !botRestricted(big)) {
+        // 撞到重量下限的雪球也算一次碾压，仍给它推开和免伤时间。
         const lost = Math.min(small.mass - 12, small.mass * .32);
         small.mass -= lost;
         big.mass += lost;
@@ -267,28 +326,67 @@ var createSnowRace = (() => {
         small.x += side * nx * 3;
         small.z += side * nz * 3;
         small.immune = 3;
-        contacts += 1;
+        if (a.slot === 0 || b.slot === 0) contacts += 1;
+        if (small.slot === 0) {
+          crushes += 1;
+          defeatsPlayer = crushes >= CRUSH_LIMIT;
+        }
       }
       a.clampToField();
       b.clampToField();
+      return defeatsPlayer ? big.slot : null;
+    }
+
+    function collideBalls() {
+      for (let i = 0; i < balls.length - 1; i++) {
+        for (let j = i + 1; j < balls.length; j++) {
+          const crusher = collidePair(balls[i], balls[j]);
+          if (crusher !== null) return crusher;
+        }
+      }
+      return null;
     }
 
     function step(dt) {
       if (phase !== 'playing' || segmentWinner !== null || !Number.isFinite(dt) || dt <= 0) return null;
       time += dt;
-      steerBot();
+      for (let slot = 1; slot < balls.length; slot++) steerBot(balls[slot]);
       respawnProps();
       for (const ball of balls) {
         if (rollBall(ball, dt)) segmentWinner = ball.slot;
       }
       if (segmentWinner === null) {
-        collideBalls();
+        const crusher = collideBalls();
+        if (crusher !== null) {
+          defeatId = ++defeatCount;
+          segmentWinner = crusher;
+          reason = '你被碾压了两次';
+          phase = 'ended';
+        }
       } else {
         wins[segmentWinner] += 1;
         reason = (segmentWinner + 1) + ' 号雪球夺下大冰雕';
         if (mode === 'quick') phase = 'ended';
       }
       return segmentWinner;
+    }
+
+    function revive(expectedDefeatId = defeatId) {
+      if (!canRevive() || expectedDefeatId !== defeatId) return false;
+      const old = balls[0], player = new Ball(0, old.equipped);
+      player.active = old.active;
+      player.peak = old.peak;
+      player.objects = old.objects;
+      player.collected = old.collected;
+      player.immune = REVIVE_PROTECTION;
+      balls[0] = player;
+      revives += 1;
+      crushes = 0;
+      defeatId = null;
+      segmentWinner = null;
+      phase = 'playing';
+      reason = '';
+      return true;
     }
 
     function settlement(reason) {
@@ -300,18 +398,17 @@ var createSnowRace = (() => {
     }
 
     function nextSegment() {
-      if (mode !== 'endless' || segmentWinner === null) return false;
+      if (mode !== 'endless' || phase !== 'playing' || segmentWinner === null) return false;
       priorActive += balls[0].active;
       segment += 1;
       segmentWinner = null;
-      botTarget = null;
       balls = balls.map(ball => new Ball(ball.slot, ball.equipped));
       removed.clear();
       removed.set(0, time + 2);
       return true;
     }
 
-    return {props: PROPS, snapshot, input, step, settlement, nextSegment};
+    return {props: PROPS, snapshot, input, step, settlement, nextSegment, revive};
   };
 })();
 

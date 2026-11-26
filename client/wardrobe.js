@@ -58,9 +58,10 @@ function drawCollectionShop(ui, view, pad, top, bottom) {
   ui.text(detail, leftMiddle, actionY - 24, 13, collectionInk.muted, 'center');
 
   const actionWidth = Math.floor(leftWidth * .54) - 4;
-  const actionLabel = isEquipped ? '已装备' : isOwned ? '装备' : '购买 ' + selected.price + ' 分';
+  const actionLabel = shortfall ? '看广告 +20 分' : isEquipped ? '已装备' : isOwned ? '装备' : '购买 ' + selected.price + ' 分';
+  const action = shortfall ? 'reward_ad' : isOwned ? 'equip' : 'buy';
   ui.button('shop-action', actionLabel, pad, actionY, actionWidth, 38,
-    () => ui.action(isOwned ? 'equip' : 'buy', selected.id), true, !account || isEquipped || shortfall > 0);
+    () => ui.action(action, selected.id), true, !account || isEquipped);
   const defaultX = pad + actionWidth + 8;
   ui.button('shop-default', equipped ? '恢复默认' : '试穿默认', defaultX, actionY, pad + leftWidth - defaultX, 38,
     () => {
@@ -108,9 +109,10 @@ function drawCollectionShop(ui, view, pad, top, bottom) {
     const nameSize = Math.min(14, Math.floor((cellWidth - 6) / Math.max(1, title.length)));
     ui.button('shop-item-' + item.id, '', x, y, cellWidth, cellHeight,
       () => view.setSelected(item.id), active);
-    ui.text(title, x + cellWidth / 2, y + cellHeight * .36, nameSize,
+    if(ui.icon)ui.icon(item.id,x+cellWidth/2,y+cellHeight*.29,Math.min(cellWidth*.70,cellHeight*.53));
+    ui.text(title, x + cellWidth / 2, y + cellHeight * .64, nameSize,
       active ? collectionInk.selected : collectionInk.text, 'center');
-    ui.text(price, x + cellWidth / 2, y + cellHeight * .72, 11,
+    ui.text(price, x + cellWidth / 2, y + cellHeight * .85, 11,
       active ? collectionInk.selected : collectionInk.gold, 'center');
   });
 
@@ -162,9 +164,10 @@ function drawCollectionCheckin(ui, account, pad, top, bottom) {
   ui.panel(pad, top, panelWidth, bottom - top);
   if (!signIn) return;
 
-  const {signed_today: signed, total_days: total, next_bonus_in: remaining,
-    reward, bonus_every: cycle, bonus_reward: bonus} = signIn;
-  const cycleDone = signed && total && total % cycle === 0 ? cycle : total % cycle;
+  const {signed_today: signed, total_days: total, next_bonus_in: remaining, streak,
+    day_rewards: dayRewards, cycle_progress: progress, today_reward: todayPoints,
+    makeup_day: makeupDay, makeup_reward: makeupPoints, reward, bonus_every: cycle, bonus_reward: bonus} = signIn;
+  const cycleDone = progress == null ? (signed && total && total % cycle === 0 ? cycle : total % cycle) : progress;
   const listX = pad + 15;
   const listWidth = panelWidth - 30;
   const gap = 8;
@@ -173,24 +176,31 @@ function drawCollectionCheckin(ui, account, pad, top, bottom) {
   const tileY = top + Math.round(height * .27);
   const tileHeight = Math.round(height * .32);
   const center = ui.w / 2;
-  ui.text('累计签到 ' + total + ' 天', listX, top + height * .13, 20, collectionInk.title, 'left');
-  ui.text('再签 ' + remaining + ' 天加送 ' + bonus + ' 积分', listX + listWidth, top + height * .13,
+  const status = streak == null ? '累计签到 ' + total + ' 天' : '连续 ' + streak + ' 天 · 累计签到 ' + total + ' 天';
+  ui.text(status, listX, top + height * .13, 18, collectionInk.title, 'left');
+  ui.text('累计再签 ' + remaining + ' 天加送 ' + bonus + ' 分', listX + listWidth, top + height * .13,
     14, collectionInk.gold, 'right');
 
   for (let day = 1; day <= cycle; day++) {
     const x = listX + (day - 1) * (tileWidth + gap);
     const credited = day <= cycleDone;
-    const points = day === cycle ? reward + bonus : reward;
+    const points = dayRewards ? dayRewards[day - 1] : day === cycle ? reward + bonus : reward;
     ui.panel(x, tileY, tileWidth, tileHeight);
     ui.text('第 ' + day + ' 次', x + tileWidth / 2, tileY + tileHeight * .31, 12, collectionInk.muted, 'center');
     ui.text(credited ? '已签' : '+' + points, x + tileWidth / 2, tileY + tileHeight * .67, 17,
       credited ? collectionInk.green : collectionInk.gold, 'center');
   }
 
-  const todayReward = reward + (!signed && remaining === 1 ? bonus : 0);
-  const buttonWidth = Math.min(224, panelWidth - 30);
-  ui.button('checkin-claim', signed ? '今日已签到' : '签到领 ' + todayReward + ' 积分', center - buttonWidth / 2,
-    bottom - 59, buttonWidth, 40, () => ui.action('signin'), true, signed);
+  const todayReward = todayPoints == null ? reward + (!signed && remaining === 1 ? bonus : 0) : todayPoints;
+  const buttonWidth = Math.min(224, (panelWidth - 46) / (makeupDay ? 2 : 1));
+  const buttonX = makeupDay ? center - buttonWidth - gap / 2 : center - buttonWidth / 2;
+  const buttonY = bottom - 59;
+  ui.button('checkin-claim', signed ? '今日已签到' : '签到领 ' + todayReward + ' 积分', buttonX,
+    buttonY, buttonWidth, 40, () => ui.action('signin'), true, signed);
+  if (makeupDay) {
+    ui.button('checkin-makeup', '看广告补昨天 +' + makeupPoints + ' 分', center + gap / 2,
+      buttonY, buttonWidth, 40, () => ui.action('makeup_signin', makeupDay));
+  }
 }
 
 if (typeof module !== 'undefined') module.exports = drawSnowCollection;

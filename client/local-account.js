@@ -15,14 +15,16 @@ const LOCAL_CONTINUING = ['win', 'segment_end'];
 const LOCAL_ABANDONED = ['leave', 'disconnected'];
 const LOCAL_FINISH = ['win', 'finish', 'defeat'];
 const LOCAL_REASONS = LOCAL_CONTINUING.concat(LOCAL_ABANDONED, 'finish', 'defeat', 'cancelled');
-const LOCAL_SIGN_REWARD = 8;
-const LOCAL_SIGN_CYCLE = 7;
+const LOCAL_SIGN_REWARDS = [8, 10, 12, 14, 16, 18, 24];
+const LOCAL_SIGN_CYCLE = LOCAL_SIGN_REWARDS.length;
 const LOCAL_SIGN_BONUS = 16;
+const LOCAL_AD_REWARD = 20;
+const LOCAL_DAY_MS = 24 * 60 * 60 * 1000;
 const LOCAL_TIME_EPSILON = 1e-7;
 
 function localAccountNewStore() {
-  return {version: 1, balance: 0, owned: [0], equipped: 0, rounds: 0, tutorialDone: false,
-    bestPeak: 0, bestEndless: 0, signCount: 0, signDay: '', daily: {}, runs: {}};
+  return {version: 2, balance: 0, owned: [0], equipped: 0, rounds: 0, tutorialDone: false,
+    bestPeak: 0, bestEndless: 0, signCount: 0, signDay: '', signEntries: {}, adClaims: {}, daily: {}, runs: {}};
 }
 
 function localAccountCopy(value) {
@@ -35,6 +37,46 @@ function localAccountObject(value) {
 
 function localBeijingDay(now) {
   return new Date(+now + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+function localShiftDay(day, days) {
+  return new Date(Date.parse(day + 'T00:00:00Z') + days * LOCAL_DAY_MS).toISOString().slice(0, 10);
+}
+
+function localSignReward(streak) {
+  return LOCAL_SIGN_REWARDS[(streak - 1) % LOCAL_SIGN_CYCLE];
+}
+
+function localNextSignBonus(store) {
+  return (store.signCount + 1) % LOCAL_SIGN_CYCLE === 0 ? LOCAL_SIGN_BONUS : 0;
+}
+
+function localAddSignEntry(store, day, streak) {
+  const base = localSignReward(streak);
+  store.balance += base + localNextSignBonus(store);
+  store.signCount++;
+  if (day > store.signDay) store.signDay = day;
+  store.signEntries[day] = {streak, base};
+}
+
+function localSignState(store, day) {
+  const yesterday = localShiftDay(day, -1);
+  const prior = localShiftDay(day, -2);
+  const todayEntry = store.signEntries[day];
+  const yesterdayEntry = store.signEntries[yesterday];
+  const priorEntry = store.signEntries[prior];
+  const nextStreak = yesterdayEntry ? yesterdayEntry.streak + 1 : 1;
+  const streak = todayEntry ? todayEntry.streak : yesterdayEntry ? yesterdayEntry.streak : 0;
+  const makeupDay = !yesterdayEntry && priorEntry && store.signDay <= day ? yesterday : null;
+  const makeupStreak = makeupDay ? priorEntry.streak + 1 : 0;
+  const todayTopUp = makeupStreak && todayEntry ? Math.max(0, localSignReward(makeupStreak + 1) - todayEntry.base) : 0;
+  return {day, signed_today: Boolean(todayEntry), total_days: store.signCount, streak,
+    cycle_progress: todayEntry ? (streak - 1) % LOCAL_SIGN_CYCLE + 1 : streak % LOCAL_SIGN_CYCLE,
+    day_rewards: LOCAL_SIGN_REWARDS.slice(), reward: localSignReward(nextStreak),
+    today_reward: localSignReward(nextStreak) + localNextSignBonus(store),
+    makeup_day: makeupDay, makeup_reward: makeupDay ? localSignReward(makeupStreak) + localNextSignBonus(store) + todayTopUp : 0,
+    next_bonus_in: LOCAL_SIGN_CYCLE - store.signCount % LOCAL_SIGN_CYCLE,
+    bonus_every: LOCAL_SIGN_CYCLE, bonus_reward: LOCAL_SIGN_BONUS};
 }
 
 function localTaskStatus(task, period, progress) {
@@ -52,9 +94,7 @@ function localAccountSnapshot(store, day) {
   tasks.push(localTaskStatus(LOCAL_ENDLESS_TASK, 'lifetime', store.bestEndless));
   return {id: 1, balance: store.balance, owned: store.owned.slice(), equipped: store.equipped,
     total_rounds: store.rounds, tutorial_done: store.tutorialDone, best_peak_kg: store.bestPeak,
-    sign_in: {day, signed_today: store.signDay === day, total_days: store.signCount,
-      next_bonus_in: LOCAL_SIGN_CYCLE - store.signCount % LOCAL_SIGN_CYCLE, reward: LOCAL_SIGN_REWARD,
-      bonus_every: LOCAL_SIGN_CYCLE, bonus_reward: LOCAL_SIGN_BONUS}, tasks};
+    sign_in: localSignState(store, day), tasks};
 }
 
 function localWeightPoints(weight) {
@@ -113,6 +153,18 @@ function localItemId(item) {
   return item;
 }
 
+function localClaimKey(claimId) {
+  if (typeof claimId !== 'string' || !claimId.trim() || claimId.length > 128) throw Error('invalid_ad_claim');
+  return 'ad:' + claimId;
+}
+
+function localClaimReplayed(store, key, kind, target) {
+  const prior = store.adClaims[key];
+  if (!prior) return false;
+  if (prior.kind !== kind || prior.target !== target) throw Error('invalid_ad_claim');
+  return true;
+}
+
 // load 和 save 同步执行，每次修改一次性保存可序列化的完整账户。
 function createLocalAccount({load, save, now = Date.now}, catalog = []) {
   const prices = new Map(catalog.filter(item => Number.isInteger(item.price) && item.price > 0)
@@ -125,7 +177,14 @@ function createLocalAccount({load, save, now = Date.now}, catalog = []) {
     if (typeof stored === 'string') {
       try { state = JSON.parse(stored); } catch (_) { throw Error('invalid_account'); }
     }
-    if (!localAccountObject(state) || state.version !== 1) throw Error('invalid_account');
+    if (!localAccountObject(state)) throw Error('invalid_account');
+    if (state.version === 1) {
+      const signEntries = {};
+      // 旧存档只记录累计次数和最后一次日期，最后一天从新连续周期的第 1 天开始。
+      if (state.signCount > 0 && state.signDay) signEntries[state.signDay] = {streak: 1, base: 8};
+      return {...state, version: 2, signEntries, adClaims: {}};
+    }
+    if (state.version !== 2) throw Error('invalid_account');
     return state;
   }
 
@@ -137,11 +196,49 @@ function createLocalAccount({load, save, now = Date.now}, catalog = []) {
     const day = localBeijingDay(now());
     const state = localAccountCopy(read());
     if (state.signDay < day) {
-      state.signDay = day;
-      state.signCount++;
-      state.balance += LOCAL_SIGN_REWARD + (state.signCount % LOCAL_SIGN_CYCLE ? 0 : LOCAL_SIGN_BONUS);
+      const previous = state.signEntries[localShiftDay(day, -1)];
+      localAddSignEntry(state, day, previous ? previous.streak + 1 : 1);
       save(state);
     }
+    return localAccountSnapshot(state, day);
+  }
+
+  function makeupSignin(targetDay, claimId) {
+    const key = localClaimKey(claimId);
+    const day = localBeijingDay(now());
+    const stored = read();
+    if (localClaimReplayed(stored, key, 'makeup', targetDay)) return localAccountSnapshot(stored, day);
+    if (!targetDay || localSignState(stored, day).makeup_day !== targetDay) throw Error('makeup_unavailable');
+
+    const state = localAccountCopy(stored);
+    const prior = state.signEntries[localShiftDay(targetDay, -1)];
+    const streak = prior.streak + 1;
+    localAddSignEntry(state, targetDay, streak);
+    const todaysSign = state.signEntries[day];
+    if (todaysSign) {
+      const base = localSignReward(streak + 1);
+      state.balance += Math.max(0, base - todaysSign.base);
+      state.signEntries[day] = {streak: streak + 1, base: Math.max(base, todaysSign.base)};
+    }
+    state.adClaims[key] = {kind: 'makeup', target: targetDay};
+    save(state);
+    return localAccountSnapshot(state, day);
+  }
+
+  function rewardAd(item, claimId) {
+    const id = localItemId(item);
+    const key = localClaimKey(claimId);
+    const day = localBeijingDay(now());
+    const stored = read();
+    if (localClaimReplayed(stored, key, 'shop', id)) return localAccountSnapshot(stored, day);
+    const price = prices.get(id);
+    if (!price) throw Error('invalid_item');
+    if (stored.owned.includes(id) || stored.balance >= price) throw Error('ad_reward_unavailable');
+
+    const state = localAccountCopy(stored);
+    state.balance += LOCAL_AD_REWARD;
+    state.adClaims[key] = {kind: 'shop', target: id};
+    save(state);
     return localAccountSnapshot(state, day);
   }
 
@@ -234,7 +331,7 @@ function createLocalAccount({load, save, now = Date.now}, catalog = []) {
     return localReward(receipt, state, day, false);
   }
 
-  return {snapshot, signin, purchase, equip, settle};
+  return {snapshot, signin, makeupSignin, rewardAd, purchase, equip, settle};
 }
 
 function localAccountSelftest() {
@@ -262,13 +359,13 @@ function localAccountSelftest() {
   expectError(() => account.equip(1), 'item_not_owned');
   check(account.signin().balance === 8 && account.signin().balance === 8, 'daily sign-in idempotency');
   timestamp += 60 * 1000;
-  check(account.signin().balance === 16, 'Beijing midnight');
+  check(account.signin().balance === 18, 'Beijing midnight');
   for (let i = 0; i < 5; i++) {
     timestamp += (i === 0 ? 2 : 1) * 86400000;
     account.signin();
   }
-  check(account.snapshot().balance === 72 && account.snapshot().sign_in.total_days === 7, 'cumulative sign-in bonus');
-  check(account.purchase(1).balance === 42 && account.purchase(1).balance === 42, 'purchase idempotency');
+  check(account.snapshot().balance === 94 && account.snapshot().sign_in.total_days === 7, 'cumulative sign-in bonus');
+  check(account.purchase(1).balance === 64 && account.purchase(1).balance === 64, 'purchase idempotency');
   check(account.equip(1).equipped === 1 && account.equip(0).equipped === 0, 'equip and restore');
   account.equip(1);
 
@@ -316,6 +413,69 @@ function localAccountSelftest() {
   cannotSave = false;
   const retried = account.settle({...round, run: 'retry'});
   check(retried.task_awards[0].id === 'rounds_3' && retried.account.total_rounds === 3, 'retry and lifetime round task');
+
+  saved = undefined;
+  timestamp = Date.UTC(2028, 0, 29, 15, 59);
+  const expectedDays = [8, 10, 12, 14, 16, 18, 40, 8];
+  let balance = 0;
+  expectedDays.forEach((points, index) => {
+    const state = account.signin();
+    balance += points;
+    check(state.balance === balance && state.sign_in.streak === index + 1, 'continuous schedule day ' + (index + 1));
+    timestamp += LOCAL_DAY_MS;
+  });
+  check(account.snapshot().sign_in.day === '2028-02-06', 'continuous schedule crosses month');
+
+  saved = undefined;
+  timestamp = Date.UTC(2028, 1, 27, 15, 59);
+  expectError(() => account.makeupSignin('2028-02-26', 'no-gap'), 'makeup_unavailable');
+  account.signin();
+  timestamp += 2 * LOCAL_DAY_MS;
+  let signIn = account.snapshot().sign_in;
+  check(signIn.makeup_day === '2028-02-28' && signIn.makeup_reward === 10, 'yesterday is recoverable on leap day');
+  account.signin();
+  check(account.snapshot().sign_in.makeup_reward === 14, 'repair offers accrued difference for today');
+  const repaired = account.makeupSignin('2028-02-28', 'repair');
+  check(repaired.balance === 30 && repaired.sign_in.streak === 3 && repaired.sign_in.total_days === 3,
+    'makeup restores streak and adds today difference');
+  check(account.makeupSignin('2028-02-28', 'repair').balance === 30, 'makeup replay');
+  expectError(() => account.makeupSignin('2028-02-28', 'repair-duplicate'), 'makeup_unavailable');
+  expectError(() => account.rewardAd(40, 'repair'), 'invalid_ad_claim');
+
+  saved = undefined;
+  timestamp = Date.UTC(2028, 2, 30, 15, 59);
+  account.signin();
+  timestamp += 2 * LOCAL_DAY_MS;
+  check(account.snapshot().sign_in.makeup_day === '2028-03-31', 'missing day from preceding month');
+  timestamp += LOCAL_DAY_MS;
+  expectError(() => account.makeupSignin('2028-03-31', 'too-late'), 'makeup_unavailable');
+
+  saved = undefined;
+  const firstAd = account.rewardAd(1, 'shop-watch-1');
+  check(firstAd.balance === 20 && firstAd.owned.length === 1 && firstAd.equipped === 0, 'first ad adds 20 only');
+  check(account.rewardAd(1, 'shop-watch-1').balance === 20, 'shop callback replay');
+  expectError(() => account.rewardAd(40, 'shop-watch-1'), 'invalid_ad_claim');
+  const secondAd = account.rewardAd(1, 'shop-watch-2');
+  check(secondAd.balance === 40 && !secondAd.owned.includes(1), 'another completed display funds purchase');
+  expectError(() => account.rewardAd(1, 'shop-watch-3'), 'ad_reward_unavailable');
+  check(account.purchase(1).balance === 10, 'ad award requires separate purchase');
+  expectError(() => account.rewardAd(1, 'shop-owned'), 'ad_reward_unavailable');
+  check(createLocalAccount(storage, catalog).rewardAd(1, 'shop-watch-2').balance === 10, 'shop replay survives restart');
+  check(account.rewardAd(40, 'shop-far-short').balance === 30, 'large shortfalls can earn 20 per ad');
+
+  const legacy = {...localAccountNewStore(), version: 1, balance: 43, owned: [0, 1], equipped: 1,
+    signCount: 6, signDay: '2028-02-28', tutorialDone: true};
+  delete legacy.adClaims;
+  delete legacy.signEntries;
+  saved = JSON.stringify(legacy);
+  timestamp = Date.UTC(2028, 1, 29, 15, 59);
+  const beforeLegacy = account.snapshot();
+  check(beforeLegacy.equipped === 1 && beforeLegacy.owned.includes(1) && beforeLegacy.balance === 43 &&
+    beforeLegacy.tutorial_done && beforeLegacy.sign_in.total_days === 6 && beforeLegacy.sign_in.today_reward === 26,
+    'legacy asset and cumulative bonus compatibility');
+  const legacySigned = account.signin();
+  check(legacySigned.balance === 69 && account.signin().balance === 69 && JSON.parse(saved).version === 2,
+    'legacy migration writes on the next change without repeating rewards');
   return true;
 }
 
