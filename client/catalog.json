@@ -6,7 +6,8 @@
     "style": "scarf",
     "color": "#ca4554",
     "accent": "#ffdbc0",
-    "tier": "日常"
+    "tier": "日常",
+    "slot": "围巾"
   },
   {
     "id": 2,
@@ -15,7 +16,8 @@
     "style": "scarf",
     "color": "#327761",
     "accent": "#fff0be",
-    "tier": "日常"
+    "tier": "日常",
+    "slot": "围巾"
   },
   {
     "id": 3,
@@ -24,7 +26,8 @@
     "style": "scarf",
     "color": "#efe1b4",
     "accent": "#ffe9b2",
-    "tier": "日常"
+    "tier": "日常",
+    "slot": "围巾"
   },
   {
     "id": 4,
@@ -33,7 +36,8 @@
     "style": "scarf",
     "color": "#497e9c",
     "accent": "#cceaff",
-    "tier": "日常"
+    "tier": "日常",
+    "slot": "围巾"
   },
   {
     "id": 5,
@@ -42,7 +46,8 @@
     "style": "beanie",
     "color": "#d56c8d",
     "accent": "#ffdbc0",
-    "tier": "日常"
+    "tier": "日常",
+    "slot": "帽子"
   },
   {
     "id": 6,
@@ -51,7 +56,8 @@
     "style": "beanie",
     "color": "#a96d44",
     "accent": "#fff0be",
-    "tier": "日常"
+    "tier": "日常",
+    "slot": "帽子"
   },
   {
     "id": 7,
@@ -60,7 +66,9 @@
     "style": "beanie",
     "color": "#6c72c7",
     "accent": "#ffe9b2",
-    "tier": "日常"
+    "tier": "日常",
+    "slot": "帽子",
+    "legacy": true
   },
   {
     "id": 8,
@@ -69,7 +77,9 @@
     "style": "beanie",
     "color": "#5b956c",
     "accent": "#cceaff",
-    "tier": "日常"
+    "tier": "日常",
+    "slot": "帽子",
+    "legacy": true
   },
   {
     "id": 9,
@@ -78,7 +88,8 @@
     "style": "earmuffs",
     "color": "#f49ca6",
     "accent": "#ffdbc0",
-    "tier": "日常"
+    "tier": "日常",
+    "slot": "帽子"
   },
   {
     "id": 10,
@@ -87,7 +98,8 @@
     "style": "earmuffs",
     "color": "#59a9d9",
     "accent": "#fff0be",
-    "tier": "日常"
+    "tier": "日常",
+    "slot": "帽子"
   },
   {
     "id": 11,
@@ -96,7 +108,9 @@
     "style": "earmuffs",
     "color": "#dec292",
     "accent": "#ffe9b2",
-    "tier": "日常"
+    "tier": "日常",
+    "slot": "帽子",
+    "legacy": true
   },
   {
     "id": 12,
@@ -105,7 +119,9 @@
     "style": "earmuffs",
     "color": "#81ceb3",
     "accent": "#cceaff",
-    "tier": "日常"
+    "tier": "日常",
+    "slot": "帽子",
+    "legacy": true
   },
   {
     "id": 13,
@@ -114,7 +130,8 @@
     "style": "bow",
     "color": "#bc5942",
     "accent": "#ffdbc0",
-    "tier": "日常"
+    "tier": "日常",
+    "slot": "围巾"
   },
   {
     "id": 14,
@@ -123,7 +140,8 @@
     "style": "bow",
     "color": "#9e79c0",
     "accent": "#fff0be",
-    "tier": "日常"
+    "tier": "日常",
+    "slot": "围巾"
   },
   {
     "id": 15,
@@ -132,7 +150,9 @@
     "style": "bow",
     "color": "#7394ae",
     "accent": "#ffe9b2",
-    "tier": "日常"
+    "tier": "日常",
+    "slot": "围巾",
+    "legacy": true
   },
   {
     "id": 16,
@@ -141,7 +161,9 @@
     "style": "bow",
     "color": "#ba936d",
     "accent": "#cceaff",
-    "tier": "日常"
+    "tier": "日常",
+    "slot": "围巾",
+    "legacy": true
   },
   {
     "id": 17,
@@ -150,7 +172,8 @@
     "style": "wreath",
     "color": "#ce5a6a",
     "accent": "#ffdbc0",
-    "tier": "日常"
+    "tier": "日常",
+    "slot": "帽子"
   },
   {
     "id": 18,
@@ -159,7 +182,8 @@
     "style": "wreath",
     "color": "#75a1a7",
     "accent": "#fff0be",
-    "tier": "日常"
+    "tier": "日常",
+    "slot": "帽子"
   },
   {
     "id": 19,
@@ -168,7 +192,9 @@
     "style": "wreath",
     "color": "#e1ba4a",
     "accent": "#ffe9b2",
-    "tier": "日常"
+    "tier": "日常",
+    "slot": "帽子",
+    "legacy": true
   },
   {
     "id": 20,
@@ -177,7 +203,9 @@
     "style": "wreath",
     "color": "#e4d6e3",
     "accent": "#cceaff",
-    "tier": "日常"
+    "tier": "日常",
+    "slot": "帽子",
+    "legacy": true
   },
   {
     "id": 21,
@@ -186,7 +214,8 @@
     "style": "cape",
     "color": "#55c6b6",
     "accent": "#ffdbc0",
-    "tier": "珍藏"
+    "tier": "珍藏",
+    "slot": "披风"
   },
   {
     "id": 22,
@@ -195,7 +224,8 @@
     "style": "cape",
     "color": "#cc664e",
     "accent": "#fff0be",
-    "tier": "珍藏"
+    "tier": "珍藏",
+    "slot": "披风"
   },
   {
     "id": 23,
@@ -204,7 +234,8 @@
     "style": "cape",
     "color": "#e3bf62",
     "accent": "#ffe9b2",
-    "tier": "珍藏"
+    "tier": "珍藏",
+    "slot": "披风"
   },
   {
     "id": 24,
@@ -213,7 +244,8 @@
     "style": "cape",
     "color": "#5c80b1",
     "accent": "#cceaff",
-    "tier": "珍藏"
+    "tier": "珍藏",
+    "slot": "披风"
   },
   {
     "id": 25,
@@ -222,7 +254,8 @@
     "style": "crown",
     "color": "#8ad9ef",
     "accent": "#ffdbc0",
-    "tier": "珍藏"
+    "tier": "珍藏",
+    "slot": "帽子"
   },
   {
     "id": 26,
@@ -231,7 +264,8 @@
     "style": "crown",
     "color": "#d9b459",
     "accent": "#fff0be",
-    "tier": "珍藏"
+    "tier": "珍藏",
+    "slot": "帽子"
   },
   {
     "id": 27,
@@ -240,7 +274,9 @@
     "style": "crown",
     "color": "#e68770",
     "accent": "#ffe9b2",
-    "tier": "珍藏"
+    "tier": "珍藏",
+    "slot": "帽子",
+    "legacy": true
   },
   {
     "id": 28,
@@ -249,7 +285,9 @@
     "style": "crown",
     "color": "#9a7cc4",
     "accent": "#cceaff",
-    "tier": "珍藏"
+    "tier": "珍藏",
+    "slot": "帽子",
+    "legacy": true
   },
   {
     "id": 29,
@@ -258,7 +296,8 @@
     "style": "antlers",
     "color": "#a16746",
     "accent": "#ffdbc0",
-    "tier": "珍藏"
+    "tier": "珍藏",
+    "slot": "帽子"
   },
   {
     "id": 30,
@@ -267,7 +306,8 @@
     "style": "antlers",
     "color": "#d2e9fc",
     "accent": "#fff0be",
-    "tier": "珍藏"
+    "tier": "珍藏",
+    "slot": "帽子"
   },
   {
     "id": 31,
@@ -276,7 +316,9 @@
     "style": "antlers",
     "color": "#daa949",
     "accent": "#ffe9b2",
-    "tier": "珍藏"
+    "tier": "珍藏",
+    "slot": "帽子",
+    "legacy": true
   },
   {
     "id": 32,
@@ -285,7 +327,9 @@
     "style": "antlers",
     "color": "#596eab",
     "accent": "#cceaff",
-    "tier": "珍藏"
+    "tier": "珍藏",
+    "slot": "帽子",
+    "legacy": true
   },
   {
     "id": 33,
@@ -294,7 +338,8 @@
     "style": "hat",
     "color": "#c95162",
     "accent": "#ffdbc0",
-    "tier": "珍藏"
+    "tier": "珍藏",
+    "slot": "帽子"
   },
   {
     "id": 34,
@@ -303,7 +348,8 @@
     "style": "hat",
     "color": "#96b6b2",
     "accent": "#fff0be",
-    "tier": "珍藏"
+    "tier": "珍藏",
+    "slot": "帽子"
   },
   {
     "id": 35,
@@ -312,7 +358,9 @@
     "style": "hat",
     "color": "#5a637e",
     "accent": "#ffe9b2",
-    "tier": "珍藏"
+    "tier": "珍藏",
+    "slot": "帽子",
+    "legacy": true
   },
   {
     "id": 36,
@@ -321,7 +369,9 @@
     "style": "hat",
     "color": "#d4a16a",
     "accent": "#cceaff",
-    "tier": "珍藏"
+    "tier": "珍藏",
+    "slot": "帽子",
+    "legacy": true
   },
   {
     "id": 37,
@@ -330,7 +380,8 @@
     "style": "wings",
     "color": "#8894e3",
     "accent": "#ffdbc0",
-    "tier": "珍藏"
+    "tier": "珍藏",
+    "slot": "披风"
   },
   {
     "id": 38,
@@ -339,7 +390,8 @@
     "style": "wings",
     "color": "#6bc7e5",
     "accent": "#fff0be",
-    "tier": "珍藏"
+    "tier": "珍藏",
+    "slot": "披风"
   },
   {
     "id": 39,
@@ -348,7 +400,9 @@
     "style": "wings",
     "color": "#e89296",
     "accent": "#ffe9b2",
-    "tier": "珍藏"
+    "tier": "珍藏",
+    "slot": "披风",
+    "legacy": true
   },
   {
     "id": 40,
@@ -357,6 +411,499 @@
     "style": "wings",
     "color": "#9cbd75",
     "accent": "#cceaff",
+    "tier": "珍藏",
+    "slot": "披风",
+    "legacy": true
+  },
+  {
+    "id": 41,
+    "name": "莓果圆镜",
+    "price": 30,
+    "style": "roundSpecs",
+    "slot": "眼镜",
+    "color": "#ac3447",
+    "accent": "#ffe6af",
+    "tier": "日常"
+  },
+  {
+    "id": 42,
+    "name": "松绿风镜",
+    "price": 40,
+    "style": "snowGoggles",
+    "slot": "眼镜",
+    "color": "#225f53",
+    "accent": "#e2c37e",
+    "tier": "日常"
+  },
+  {
+    "id": 43,
+    "name": "冰湖方镜",
+    "price": 50,
+    "style": "squareSpecs",
+    "slot": "眼镜",
+    "color": "#4d75a4",
+    "accent": "#c6e6ff",
+    "tier": "日常"
+  },
+  {
+    "id": 44,
+    "name": "樱紫圆镜",
+    "price": 60,
+    "style": "roundSpecs",
+    "slot": "眼镜",
+    "color": "#854774",
+    "accent": "#f2bec6",
+    "tier": "日常"
+  },
+  {
+    "id": 45,
+    "name": "蜂蜜风镜",
+    "price": 80,
+    "style": "snowGoggles",
+    "slot": "眼镜",
+    "color": "#bb7240",
+    "accent": "#fff0bb",
+    "tier": "日常"
+  },
+  {
+    "id": 46,
+    "name": "午夜方镜",
+    "price": 100,
+    "style": "squareSpecs",
+    "slot": "眼镜",
+    "color": "#35485f",
+    "accent": "#9ed6d1",
+    "tier": "日常"
+  },
+  {
+    "id": 47,
+    "name": "北极星镜",
+    "price": 180,
+    "style": "starSpecs",
+    "slot": "眼镜",
+    "color": "#ac3447",
+    "accent": "#ffe6af",
     "tier": "珍藏"
+  },
+  {
+    "id": 48,
+    "name": "极光雪镜",
+    "price": 240,
+    "style": "skiVisor",
+    "slot": "眼镜",
+    "color": "#225f53",
+    "accent": "#e2c37e",
+    "tier": "珍藏"
+  },
+  {
+    "id": 49,
+    "name": "水晶链镜",
+    "price": 280,
+    "style": "jewelSpecs",
+    "slot": "眼镜",
+    "color": "#4d75a4",
+    "accent": "#c6e6ff",
+    "tier": "珍藏"
+  },
+  {
+    "id": 50,
+    "name": "星芒金镜",
+    "price": 320,
+    "style": "starSpecs",
+    "slot": "眼镜",
+    "color": "#854774",
+    "accent": "#f2bec6",
+    "tier": "珍藏"
+  },
+  {
+    "id": 51,
+    "name": "琥珀护目镜",
+    "price": 420,
+    "style": "skiVisor",
+    "slot": "眼镜",
+    "color": "#bb7240",
+    "accent": "#fff0bb",
+    "tier": "珍藏"
+  },
+  {
+    "id": 52,
+    "name": "月光链镜",
+    "price": 560,
+    "style": "jewelSpecs",
+    "slot": "眼镜",
+    "color": "#35485f",
+    "accent": "#9ed6d1",
+    "tier": "珍藏"
+  },
+  {
+    "id": 53,
+    "name": "圣诞铃围巾",
+    "price": 180,
+    "style": "bellScarf",
+    "slot": "围巾",
+    "color": "#ac3447",
+    "accent": "#ffe6af",
+    "tier": "珍藏"
+  },
+  {
+    "id": 54,
+    "name": "冬青绸带",
+    "price": 240,
+    "style": "ribbonScarf",
+    "slot": "围巾",
+    "color": "#225f53",
+    "accent": "#e2c37e",
+    "tier": "珍藏"
+  },
+  {
+    "id": 55,
+    "name": "霜晶毛领",
+    "price": 280,
+    "style": "furCollar",
+    "slot": "围巾",
+    "color": "#4d75a4",
+    "accent": "#c6e6ff",
+    "tier": "珍藏"
+  },
+  {
+    "id": 56,
+    "name": "星夜铃围巾",
+    "price": 320,
+    "style": "bellScarf",
+    "slot": "围巾",
+    "color": "#854774",
+    "accent": "#f2bec6",
+    "tier": "珍藏"
+  },
+  {
+    "id": 57,
+    "name": "金穗绸带",
+    "price": 420,
+    "style": "ribbonScarf",
+    "slot": "围巾",
+    "color": "#bb7240",
+    "accent": "#fff0bb",
+    "tier": "珍藏"
+  },
+  {
+    "id": 58,
+    "name": "月白毛领",
+    "price": 560,
+    "style": "furCollar",
+    "slot": "围巾",
+    "color": "#35485f",
+    "accent": "#9ed6d1",
+    "tier": "珍藏"
+  },
+  {
+    "id": 59,
+    "name": "莓果手套",
+    "price": 30,
+    "style": "mittens",
+    "slot": "手臂",
+    "color": "#ac3447",
+    "accent": "#ffe6af",
+    "tier": "日常"
+  },
+  {
+    "id": 60,
+    "name": "松枝小手",
+    "price": 40,
+    "style": "twigs",
+    "slot": "手臂",
+    "color": "#225f53",
+    "accent": "#e2c37e",
+    "tier": "日常"
+  },
+  {
+    "id": 61,
+    "name": "冰湖护腕",
+    "price": 50,
+    "style": "cuffs",
+    "slot": "手臂",
+    "color": "#4d75a4",
+    "accent": "#c6e6ff",
+    "tier": "日常"
+  },
+  {
+    "id": 62,
+    "name": "梅紫手套",
+    "price": 60,
+    "style": "mittens",
+    "slot": "手臂",
+    "color": "#854774",
+    "accent": "#f2bec6",
+    "tier": "日常"
+  },
+  {
+    "id": 63,
+    "name": "姜饼树枝",
+    "price": 80,
+    "style": "twigs",
+    "slot": "手臂",
+    "color": "#bb7240",
+    "accent": "#fff0bb",
+    "tier": "日常"
+  },
+  {
+    "id": 64,
+    "name": "薄荷护腕",
+    "price": 100,
+    "style": "cuffs",
+    "slot": "手臂",
+    "color": "#35485f",
+    "accent": "#9ed6d1",
+    "tier": "日常"
+  },
+  {
+    "id": 65,
+    "name": "铃兰拳套",
+    "price": 180,
+    "style": "bellMitts",
+    "slot": "手臂",
+    "color": "#ac3447",
+    "accent": "#ffe6af",
+    "tier": "珍藏"
+  },
+  {
+    "id": 66,
+    "name": "冬青糖杖",
+    "price": 240,
+    "style": "candyArms",
+    "slot": "手臂",
+    "color": "#225f53",
+    "accent": "#e2c37e",
+    "tier": "珍藏"
+  },
+  {
+    "id": 67,
+    "name": "冰晶枝杈",
+    "price": 280,
+    "style": "crystalArms",
+    "slot": "手臂",
+    "color": "#4d75a4",
+    "accent": "#c6e6ff",
+    "tier": "珍藏"
+  },
+  {
+    "id": 68,
+    "name": "金铃拳套",
+    "price": 320,
+    "style": "bellMitts",
+    "slot": "手臂",
+    "color": "#854774",
+    "accent": "#f2bec6",
+    "tier": "珍藏"
+  },
+  {
+    "id": 69,
+    "name": "琥珀糖杖",
+    "price": 420,
+    "style": "candyArms",
+    "slot": "手臂",
+    "color": "#bb7240",
+    "accent": "#fff0bb",
+    "tier": "珍藏"
+  },
+  {
+    "id": 70,
+    "name": "极光枝杈",
+    "price": 560,
+    "style": "crystalArms",
+    "slot": "手臂",
+    "color": "#35485f",
+    "accent": "#9ed6d1",
+    "tier": "珍藏"
+  },
+  {
+    "id": 71,
+    "name": "莓红斗篷",
+    "price": 30,
+    "style": "shortCape",
+    "slot": "披风",
+    "color": "#ac3447",
+    "accent": "#ffe6af",
+    "tier": "日常"
+  },
+  {
+    "id": 72,
+    "name": "松绿短披",
+    "price": 40,
+    "style": "mantle",
+    "slot": "披风",
+    "color": "#225f53",
+    "accent": "#e2c37e",
+    "tier": "日常"
+  },
+  {
+    "id": 73,
+    "name": "雪蓝飘带",
+    "price": 50,
+    "style": "ribbonCape",
+    "slot": "披风",
+    "color": "#4d75a4",
+    "accent": "#c6e6ff",
+    "tier": "日常"
+  },
+  {
+    "id": 74,
+    "name": "梅子斗篷",
+    "price": 60,
+    "style": "shortCape",
+    "slot": "披风",
+    "color": "#854774",
+    "accent": "#f2bec6",
+    "tier": "日常"
+  },
+  {
+    "id": 75,
+    "name": "焦糖短披",
+    "price": 80,
+    "style": "mantle",
+    "slot": "披风",
+    "color": "#bb7240",
+    "accent": "#fff0bb",
+    "tier": "日常"
+  },
+  {
+    "id": 76,
+    "name": "薄荷飘带",
+    "price": 100,
+    "style": "ribbonCape",
+    "slot": "披风",
+    "color": "#35485f",
+    "accent": "#9ed6d1",
+    "tier": "日常"
+  },
+  {
+    "id": 77,
+    "name": "姜饼星糖",
+    "price": 30,
+    "style": "cookie",
+    "slot": "嘴部装饰",
+    "color": "#ac3447",
+    "accent": "#ffe6af",
+    "tier": "日常"
+  },
+  {
+    "id": 78,
+    "name": "松绿棒糖",
+    "price": 40,
+    "style": "lollipop",
+    "slot": "嘴部装饰",
+    "color": "#225f53",
+    "accent": "#e2c37e",
+    "tier": "日常"
+  },
+  {
+    "id": 79,
+    "name": "冬青叶签",
+    "price": 50,
+    "style": "leafSprig",
+    "slot": "嘴部装饰",
+    "color": "#4d75a4",
+    "accent": "#c6e6ff",
+    "tier": "日常"
+  },
+  {
+    "id": 80,
+    "name": "可可饼干",
+    "price": 60,
+    "style": "cookie",
+    "slot": "嘴部装饰",
+    "color": "#854774",
+    "accent": "#f2bec6",
+    "tier": "日常"
+  },
+  {
+    "id": 81,
+    "name": "蜂蜜棒糖",
+    "price": 80,
+    "style": "lollipop",
+    "slot": "嘴部装饰",
+    "color": "#bb7240",
+    "accent": "#fff0bb",
+    "tier": "日常"
+  },
+  {
+    "id": 82,
+    "name": "薄荷叶签",
+    "price": 100,
+    "style": "leafSprig",
+    "slot": "嘴部装饰",
+    "color": "#35485f",
+    "accent": "#9ed6d1",
+    "tier": "日常"
+  },
+  {
+    "id": 83,
+    "name": "莓果拐杖糖",
+    "price": 180,
+    "style": "candyCane",
+    "slot": "嘴部装饰",
+    "color": "#ac3447",
+    "accent": "#ffe6af",
+    "tier": "珍藏"
+  },
+  {
+    "id": 84,
+    "name": "圣诞金哨",
+    "price": 240,
+    "style": "goldWhistle",
+    "slot": "嘴部装饰",
+    "color": "#225f53",
+    "accent": "#e2c37e",
+    "tier": "珍藏"
+  },
+  {
+    "id": 85,
+    "name": "冰蓝玫瑰",
+    "price": 280,
+    "style": "iceRose",
+    "slot": "嘴部装饰",
+    "color": "#4d75a4",
+    "accent": "#c6e6ff",
+    "tier": "珍藏"
+  },
+  {
+    "id": 86,
+    "name": "星夜拐杖糖",
+    "price": 320,
+    "style": "candyCane",
+    "slot": "嘴部装饰",
+    "color": "#854774",
+    "accent": "#f2bec6",
+    "tier": "珍藏"
+  },
+  {
+    "id": 87,
+    "name": "冬日银哨",
+    "price": 420,
+    "style": "goldWhistle",
+    "slot": "嘴部装饰",
+    "color": "#bb7240",
+    "accent": "#fff0bb",
+    "tier": "珍藏"
+  },
+  {
+    "id": 88,
+    "name": "月光冰玫",
+    "price": 560,
+    "style": "iceRose",
+    "slot": "嘴部装饰",
+    "color": "#35485f",
+    "accent": "#9ed6d1",
+    "tier": "珍藏"
+  },
+  {
+    "id": 89,
+    "name": "初雪红围巾",
+    "price": 0,
+    "style": "scarf",
+    "color": "#bd4339",
+    "accent": "#f5d4a5",
+    "tier": "初始",
+    "slot": "围巾",
+    "starter": true
   }
 ]

@@ -1,5 +1,11 @@
 async function playSnow(T,host,makeScene){
-  const catalog=await host.catalog(), scene=await makeScene(T,host,catalog);
+  const progress=host.progress||(()=>{});
+  progress(.30,'正在装点雪村');
+  const interfaceAssets=Promise.all([host.loadTypeface().catch(()=>null),
+    ...['art/snow-title.png','art/outfit-icons.png'].map(path=>host.image(path).catch(()=>null))]);
+  const catalog=await host.catalog();
+  const scene=await makeScene(T,host,catalog);
+  progress(.87,'正在整理衣橱');
   const area=host.safe&&host.safe.right<=host.w&&host.safe.bottom<=host.h&&host.safe.right>host.safe.left&&host.safe.bottom>host.safe.top
     ? host.safe : {left:0,top:0,right:host.w,bottom:host.h};
   let ratio=Math.min(host.ratio,1.6);
@@ -12,11 +18,12 @@ async function playSnow(T,host,makeScene){
   const hudScene=new T.Scene(),camera=new T.OrthographicCamera(-1,1,1,-1,.01,4);
   camera.position.z=1;
   hudScene.add(new T.Mesh(new T.PlaneGeometry(2,2),new T.MeshBasicMaterial({map:texture,transparent:true,depthTest:false,depthWrite:false,toneMapped:false})));
-  const audio=host.makeAudio(host),displayFont=await host.loadTypeface().catch(()=>null);
+  const audio=host.makeAudio(host);
+  const [displayFont,emblem,icons]=await interfaceAssets;
   const sound=speed=>audio.roll(speed,state&&state.balls[0][4]||12);
   const account=host.createAccount(host.storage,catalog), ranking=host.ranking;
   let session=account.snapshot(),page='home',race=null,state=null,receipt=null;
-  const [emblem,icons]=await Promise.all(['art/snow-title.png','art/outfit-icons.png'].map(path=>host.image(path).catch(()=>null)));
+  progress(.97,'雪场已就绪');
   const slot=0;
   let rankNames=[];
   let guidePage=0,ad=null,adSequence=0,adOrigin='',lastCollected=new Set();
@@ -27,7 +34,7 @@ async function playSnow(T,host,makeScene){
   }
   let sidebarReturn=false,paused=false,remainder=0,unsettled=null;
   function syncRank(){if(ranking)ranking.update(session).catch(()=>{});}
-  let selected=0,pageIndex=0,toast='',toastUntil=0,buttons=[],pressed=null,stick=null;
+  let selected=0,part='帽子',pageIndex=0,toast='',toastUntil=0,buttons=[],pressed=null,stick=null;
   let vx=0,vz=0,keys=new Set(),dirty=true,status='',lastHud=0,previous=0,lastInput=0;
   const modeName=mode=>mode==='endless'?'无尽模式':'快速对局';
   const errorNames={insufficient_balance:'积分不足',already_owned:'已经拥有这件装扮',not_owned:'请先购买装扮',invalid_item:'没有这件装扮'};
@@ -36,7 +43,7 @@ async function playSnow(T,host,makeScene){
     page=next;pressed=null;buttons=[];dirty=true;
     if(next==='checkin'||next==='shop')session=account.snapshot();
     if(next==='rank'&&ranking)ranking.own();
-    if(next==='shop'){selected=session?session.equipped:0;pageIndex=0;}
+    if(next==='shop'){selected=session.loadout[part]||0;pageIndex=0;}
   }
   function request(op,fields={}){
     if(op==='reward_ad'||op==='makeup_signin'){watch(op,fields.item);return;}
@@ -44,7 +51,7 @@ async function playSnow(T,host,makeScene){
       const oldBalance=session.balance;
       if(op==='signin'){session=account.signin();note('签到成功　+'+(session.balance-oldBalance)+' 积分');}
       if(op==='buy'){session=account.purchase(fields.item);note('已收入衣橱，可以装备了');}
-      if(op==='equip'){session=account.equip(fields.item);syncRank();note('已换好装扮');}
+      if(op==='equip'){session=account.equip(fields.item,part);syncRank();note('已换好装扮');}
     }catch(e){note(errorNames[e.message]||'未能保存，请重试');}
     dirty=true;
   }
@@ -78,7 +85,7 @@ async function playSnow(T,host,makeScene){
   }
   function openMatch(mode,tutorial=false){
     receipt=null;unsettled=null;remainder=0;lastCollected.clear();zero();
-    race=host.createRace(mode,tutorial,session.equipped);
+    race=host.createRace(mode,tutorial,Object.values(session.loadout));
     if(ranking)ranking.begin(tutorial);
     scene.reset();scene.setLevel(race.props);state=race.snapshot();go('playing');
   }
@@ -305,10 +312,35 @@ async function playSnow(T,host,makeScene){
     }else{text('正在接收结算…',w/2,y+94,16,'#e1eef2','center');}
     button('return','返回大厅',x+55,y+157,rw-110,42,state?leave:home,true);
   }
+  function drawChristmasSprig(now,battle){
+    const colors=['#f76a5e','#ffd977','#52dbad','#85cdfc'];
+    const x0=battle?w*.59:w*.27,x1=battle?w*.77:w*.59;
+    const yAt=t=>-6+(battle?15:26)*4*t*(1-t);
+    ctx.save();ctx.lineCap='round';ctx.lineWidth=battle?2:3;ctx.strokeStyle='#224e42';
+    ctx.beginPath();ctx.moveTo(x0,-6);ctx.quadraticCurveTo((x0+x1)/2,battle?24:46,x1,-6);ctx.stroke();
+    for(let i=1;i<34;i++){
+      const t=i/34,x=x0+(x1-x0)*t,y=yAt(t);
+      if(!battle){
+        ctx.lineWidth=1.7;ctx.strokeStyle=i%2?'#336b53':'#588569';
+        ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x-6,y-4);ctx.moveTo(x,y);ctx.lineTo(x-5,y+3);ctx.stroke();
+      }
+      if(i%4!==0)continue;
+      const color=colors[(i/4)%4],drop=battle?2:4;
+      ctx.fillStyle='#73563b';ctx.fillRect(x-1.4,y,2.8,drop+2);
+      const cy=y+drop+3,r=battle?2.1:3.5;
+      const aura=ctx.createRadialGradient(x,cy,0,x,cy,r*3.1);
+      aura.addColorStop(0,color);aura.addColorStop(1,'rgba(255,206,131,0)');
+      ctx.globalAlpha=.35+.12*Math.sin(now*.0015+i);ctx.fillStyle=aura;ctx.fillRect(x-r*3.1,cy-r*3.1,r*6.2,r*6.2);
+      ctx.globalAlpha=1;ctx.fillStyle=color;ctx.beginPath();ctx.arc(x,cy,r,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#fff3bd';ctx.fillRect(x-r*.4,cy-r*.55,1,1.5);
+    }
+    ctx.restore();
+  }
   function hud(now){
     ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,overlay.width,overlay.height);
     ctx.setTransform(ratio*scale,0,0,ratio*scale,ratio*area.left,ratio*area.top);buttons=[];
     rankNames=[];
+    if(page==='home'||page==='playing')drawChristmasSprig(now,page==='playing');
     if(page==='home')renderMenu();
     if(page==='guide')host.guide.draw({w,h,button,text,panel,circle,fill},guidePage,enterAfterGuide);
     if(page==='crushed'||page==='webAd'){
@@ -336,7 +368,7 @@ async function playSnow(T,host,makeScene){
       if(page==='shop')fill(w*.021,h-130,w*.314,67,12,'rgba(25,48,67,.82)');
       host.drawCollection({w,h,headerRight,button,text,panel,icon:(id,x,y,size)=>{if(icons)ctx.drawImage(icons,((id-1)%8)*96,Math.floor((id-1)/8)*96,96,96,x-size/2,y-size/2,size,size);},
         back:home,action:(op,item)=>request(op,{item}),preview:()=>{}},
-        {page,account:session,catalog,selected,pageIndex,setSelected:id=>{selected=id;dirty=true;},setPageIndex:n=>{pageIndex=n;dirty=true;}});
+        {page,account:session,catalog,selected,part,pageIndex,setPart:name=>{part=name;selected=session.loadout[part]||0;pageIndex=0;dirty=true;},setSelected:id=>{selected=id;dirty=true;},setPageIndex:n=>{pageIndex=n;dirty=true;}});
     }
     if(page==='playing'){
       const ball=state.balls[slot],elapsed=Math.floor(state.time);
@@ -396,7 +428,7 @@ async function playSnow(T,host,makeScene){
     }
     if(now-lastInput>=100){sendInput();lastInput=now;}
     advance(dt);
-    scene.draw(state,slot,dt,{page,itemId:page==='shop'?selected:session?session.equipped:0});
+    scene.draw(state,slot,dt,{page,itemId:page==='shop'?Object.values({...session.loadout,[part]:selected}).filter(Boolean):Object.values(session.loadout)});
     if(dirty||time-lastHud>=65){hud(now);lastHud=time;}
     scene.renderer.autoClear=false;scene.renderer.render(hudScene,camera);
     if(page==='rank'||(page==='playing'&&!state.tutorial))scene.drawRankLabel(page==='rank',rankNames);
@@ -406,6 +438,6 @@ async function playSnow(T,host,makeScene){
   if(!session.tutorial_done){
     if(host.pref.get('guide-complete'))openMatch('quick',true);else go('guide');
   }
-  host.frame(frame);
+  host.frame(time=>{if(host.finishLoading)host.finishLoading();frame(time);});
 }
 if(typeof module!=='undefined')module.exports=playSnow;

@@ -11,7 +11,7 @@ const defaultSnowball = {id: 0, name: '默认外观', price: 0};
 
 function drawSnowCollection(ui, view) {
   const account = view.account;
-  const titles = {shop: '外观商店', tasks: '任务', checkin: '签到'};
+  const titles = {shop: '衣橱', tasks: '任务', checkin: '签到'};
   if (!titles[view.page]) return;
 
   const pad = Math.max(10, Math.round(ui.w * .022));
@@ -32,9 +32,9 @@ function drawSnowCollection(ui, view) {
 
 function drawCollectionShop(ui, view, pad, top, bottom) {
   const catalog = view.catalog || [];
-  const selected = catalog.find(item => item.id === view.selected) || defaultSnowball;
+  const selected = catalog.find(item => item.id === view.selected) || {id:0,name:'未佩戴'+view.part,price:0};
   const account = view.account;
-  const equipped = account ? account.equipped : 0;
+  const equipped = account ? account.loadout[view.part] || 0 : 0;
   const owned = new Set(account ? account.owned : [0]);
   owned.add(0);
   const leftWidth = Math.max(150, Math.round(ui.w * .312));
@@ -50,7 +50,7 @@ function drawCollectionShop(ui, view, pad, top, bottom) {
   const isEquipped = equipped === selected.id;
   const isOwned = owned.has(selected.id);
   const shortfall = account && !isOwned ? Math.max(0, selected.price - account.balance) : 0;
-  let detail = selected.id === 0 ? '初始装扮' : selected.tier;
+  let detail = selected.id === 0 ? '空置部位' : view.part;
   if (isEquipped) detail = '当前装备';
   else if (shortfall) detail = '还差 ' + shortfall + ' 积分';
   else if (isOwned) detail = '已拥有 · 试穿中';
@@ -63,7 +63,7 @@ function drawCollectionShop(ui, view, pad, top, bottom) {
   ui.button('shop-action', actionLabel, pad, actionY, actionWidth, 38,
     () => ui.action(action, selected.id), true, !account || isEquipped);
   const defaultX = pad + actionWidth + 8;
-  ui.button('shop-default', equipped ? '恢复默认' : '试穿默认', defaultX, actionY, pad + leftWidth - defaultX, 38,
+  ui.button('shop-default', equipped ? '卸下本部位' : '取下预览', defaultX, actionY, pad + leftWidth - defaultX, 38,
     () => {
       view.setSelected(0);
       if (equipped) ui.action('equip', 0);
@@ -75,28 +75,23 @@ function drawCollectionShop(ui, view, pad, top, bottom) {
   const gap = 7;
   const columns = innerWidth >= 340 ? 5 : 4;
   const perPage = columns * 2;
-  const tiers = ['日常', '珍藏'].map(name => {
-    const items = catalog.filter(item => item.id !== 0 && item.tier === name);
-    return {name, items, pages: Math.max(1, Math.ceil(items.length / perPage))};
-  });
-  const totalPages = tiers[0].pages + tiers[1].pages;
-  const page = Math.min(totalPages - 1, Math.max(0, Math.floor(view.pageIndex || 0)));
-  const tierIndex = page < tiers[0].pages ? 0 : 1;
-  const tier = tiers[tierIndex];
-  const firstPage = tierIndex ? tiers[0].pages : 0;
-  const pageInTier = page - firstPage;
-  const tabWidth = Math.min(106, Math.floor((innerWidth - gap) / 2));
+  const parts = ['帽子','眼镜','围巾','手臂','披风','嘴部装饰'];
+  const entries = catalog.filter(item => item.slot === view.part && (!item.legacy || owned.has(item.id)))
+    .sort((a,b) => Number(!!a.starter)-Number(!!b.starter) || a.price - b.price || a.id - b.id);
+  const pages = Math.max(1,Math.ceil(entries.length / perPage));
+  const page = Math.min(pages - 1, Math.max(0, Math.floor(view.pageIndex || 0)));
+  const tabGap = 3, tabWidth = (innerWidth - tabGap * 5) / 6;
   const tabY = top + 8;
-  tiers.forEach((entry, i) => {
-    ui.button('shop-tier-' + i, entry.name + ' ' + entry.items.length, innerX + i * (tabWidth + gap), tabY,
-      tabWidth, 34, () => view.setPageIndex(i ? tiers[0].pages : 0), tierIndex === i);
+  parts.forEach((name,i) => {
+    ui.button('shop-slot-'+i, name === '嘴部装饰' ? '嘴饰' : name, innerX+i*(tabWidth+tabGap),tabY,
+      tabWidth,34,()=>view.setPart(name),view.part===name);
   });
 
   const gridY = tabY + 43;
   const navY = bottom - 44;
   const cellWidth = Math.floor((innerWidth - gap * (columns - 1)) / columns);
   const cellHeight = Math.floor((navY - gridY - gap - 7) / 2);
-  const items = tier.items.slice(pageInTier * perPage, (pageInTier + 1) * perPage);
+  const items = entries.slice(page * perPage, (page + 1) * perPage);
   if (!items.length) {
     ui.text('暂无外观', rightX + rightWidth / 2, (gridY + navY) / 2, 16, collectionInk.muted, 'center');
   }
@@ -118,10 +113,10 @@ function drawCollectionShop(ui, view, pad, top, bottom) {
 
   const navWidth = Math.min(85, Math.floor((innerWidth - 65) / 2));
   ui.button('shop-prev', '上一页', innerX, navY, navWidth, 34,
-    () => view.setPageIndex(page - 1), false, pageInTier === 0);
-  ui.text((pageInTier + 1) + ' / ' + tier.pages, rightX + rightWidth / 2, navY + 17, 13, collectionInk.muted, 'center');
+    () => view.setPageIndex(page - 1), false, page === 0);
+  ui.text((page + 1) + ' / ' + pages, rightX + rightWidth / 2, navY + 17, 13, collectionInk.muted, 'center');
   ui.button('shop-next', '下一页', innerX + innerWidth - navWidth, navY, navWidth, 34,
-    () => view.setPageIndex(page + 1), false, pageInTier + 1 === tier.pages);
+    () => view.setPageIndex(page + 1), false, page + 1 === pages);
 }
 
 function drawCollectionTasks(ui, account, pad, top, bottom) {

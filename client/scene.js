@@ -1,18 +1,20 @@
 /* 旧雪村的地标与在线对战共用一套比例。 */
 async function createSnowScene(T, host, catalog) {
   const canvas = host.screen;
-  const renderer = new T.WebGLRenderer({canvas, antialias: true, alpha: false});
+  const renderer = host.renderer || new T.WebGLRenderer({canvas, antialias: true, alpha: false});
   const matchRatio=Math.min(1.6,host.ratio);
   const menuRatio=Math.min(host.ratio,2.5,Math.sqrt(3200000/(host.w*host.h)));
   renderer.setPixelRatio(matchRatio);
   renderer.setSize(host.w, host.h, false);
   renderer.outputColorSpace = T.SRGBColorSpace;
+  const core=Promise.all([host.image('art/twilight.jpg'),model('palace'),host.read('art/chalet.mesh'),host.image('art/chalet.jpg')]);
   const scene = new T.Scene();
   const field=new T.Group();scene.add(field);
   const winter=new host.winter(T,field,renderer,host.layer,host.village);
   scene.background = new T.Color(0x324566);
   if(host.image){
-    const panorama=await host.image('art/twilight.jpg'),tint=host.layer();
+    const [panorama]=await core,tint=host.layer();
+    if(host.progress)host.progress(.61,'正在铺设雪道');
     tint.width=panorama.width;tint.height=panorama.height;
     const skyPen=tint.getContext('2d');skyPen.drawImage(panorama,0,0);
     skyPen.globalCompositeOperation='color';skyPen.fillStyle='rgba(85,129,190,.63)';skyPen.fillRect(0,0,tint.width,tint.height);
@@ -112,15 +114,15 @@ async function createSnowScene(T, host, catalog) {
     g.computeVertexNormals();
     return g;
   }
-  const palace=await model('palace');
-  const woodBuffer=await host.read('art/chalet.mesh'),header=new DataView(woodBuffer);
+  const [,palace,woodBuffer,sidingImage]=await core;
+  const header=new DataView(woodBuffer);
   const verts=header.getUint32(0,true),indices=header.getUint32(4,true);
   const chalet=new T.BufferGeometry();
   chalet.setAttribute('position',new T.BufferAttribute(new Float32Array(woodBuffer,8,verts*3),3));
   chalet.setAttribute('normal',new T.BufferAttribute(new Float32Array(woodBuffer,8+verts*12,verts*3),3));
   chalet.setAttribute('uv',new T.BufferAttribute(new Float32Array(woodBuffer,8+verts*24,verts*2),2));
   chalet.setIndex(new T.BufferAttribute(new Uint16Array(woodBuffer,8+verts*32,indices),1));
-  const siding=new T.Texture(await host.image('art/chalet.jpg'));siding.flipY=false;siding.colorSpace=T.SRGBColorSpace;
+  const siding=new T.Texture(sidingImage);siding.flipY=false;siding.colorSpace=T.SRGBColorSpace;
   siding.wrapS=siding.wrapT=T.RepeatWrapping;siding.needsUpdate=true;
   const houseMat=new T.MeshStandardMaterial({map:siding,roughness:.84,emissive:0xffbc75,emissiveMap:siding});
   houseMat.onBeforeCompile=shader=>{shader.fragmentShader=shader.fragmentShader.replace('#include <emissivemap_fragment>',
@@ -233,7 +235,56 @@ async function createSnowScene(T, host, catalog) {
   for(const actor of [...backdrop.children])if(actor!==scenicDetails&&actor!==distantPalace&&!nearCabins.includes(actor))scenicDetails.add(actor);
   batchDecor(scenicDetails);
   loadPortraitModels().catch(()=>{});
-  const flakeCount=180, flakePositions=new Float32Array(flakeCount*3);
+  // 同一条灯串的电线、灯珠分别合并，避免给每个灯泡添加实时光源。
+  const christmasColors=[0xff7763,0xffdf88,0x6debb2,0xffc679,0x89c9ff];
+  const garlandMats=[];
+  function garlands(parent,strings){
+    const wire=[],bulbs=[],colors=[];
+    for(const [ax,ay,az,bx,by,bz,sag] of strings){
+      const count=Math.max(8,Math.ceil(Math.hypot(bx-ax,bz-az)/.86));
+      let previous=[ax,ay,az];
+      for(let i=1;i<=count;i++){
+        const t=i/count, x=ax+(bx-ax)*t,y=ay+(by-ay)*t-4*sag*t*(1-t),z=az+(bz-az)*t;
+        wire.push(...previous,x,y,z);previous=[x,y,z];
+        if(i%2){bulbs.push(x,y-.095,z);colors.push(...new T.Color(christmasColors[i%5]).toArray());}
+      }
+    }
+    const line=new T.BufferGeometry();line.setAttribute('position',new T.Float32BufferAttribute(wire,3));
+    parent.add(new T.LineSegments(line,new T.LineBasicMaterial({color:0x504d42})));
+    const dots=new T.BufferGeometry();dots.setAttribute('position',new T.Float32BufferAttribute(bulbs,3));
+    dots.setAttribute('color',new T.Float32BufferAttribute(colors,3));
+    const material=new T.PointsMaterial({size:.67,map:glowTexture,vertexColors:true,transparent:true,depthWrite:false,toneMapped:false});
+    garlandMats.push(material);parent.add(new T.Points(dots,material));
+  }
+  const glowCanvas=host.layer();glowCanvas.width=glowCanvas.height=48;
+  const gp=glowCanvas.getContext('2d'),glow=gp.createRadialGradient(24,24,0,24,24,24);
+  glow.addColorStop(0,'#fff');glow.addColorStop(.30,'#fff');glow.addColorStop(.48,'rgba(255,255,255,.82)');
+  glow.addColorStop(1,'rgba(255,255,255,0)');gp.fillStyle=glow;gp.fillRect(0,0,48,48);
+  const glowTexture=new T.CanvasTexture(glowCanvas);
+  const baubles=[];
+  for(const [x,z,k] of [[-12,19,1.65],[-6,12,1.2],[7,7,1.55],[17,16,1.6],[3,-22,1.1]]){
+    for(let j=0;j<29;j++){
+      const t=j/29,a=t*Math.PI*7,r=(1.38-t*1.04)*k;
+      baubles.push([x+Math.cos(a)*r,(1.05+t*3.07)*k,z+Math.sin(a)*r,christmasColors[j%5]]);
+    }
+  }
+  const ornaments=new T.InstancedMesh(new T.SphereGeometry(.15,8,6),new T.MeshBasicMaterial({toneMapped:false}),baubles.length);
+  baubles.forEach(([x,y,z,color],i)=>{ornaments.setMatrixAt(i,new T.Matrix4().makeTranslation(x,y,z));ornaments.setColorAt(i,new T.Color(color));});
+  backdrop.add(ornaments);
+  garlands(backdrop,[[-10,6.7,23,12,6.4,18,2],[-12,6.7,16,-3,4.3,0,.76],[-3,4.3,0,15,6.8,-9,1.2],[15,6.8,-9,1,6,-37,1.5]]);
+  const festivalSpans=[];
+  const poleGeometry=new T.CylinderGeometry(.095,.14,1,8),poleMaterial=paint(0x785545);
+  for(const [cx,cz,a] of [[0,184,.08],[23,141,-.48],[-60,74,.78],[50,43,.4],[-32,-75,-.55],[62,-115,.2],[-115,-15,.9],[100,104,-.75],[0,26,.05]]){
+    const dx=Math.cos(a)*11,dz=Math.sin(a)*11,ends=[];
+    for(const side of [-1,1]){
+      const x=cx+side*dx,z=cz+side*dz,y=host.village.height(x,z);
+      piece(field,poleGeometry,poleMaterial,x,y+3.9,z,1,7.8,1);
+      ends.push(x,y+7.7,z);
+    }
+    festivalSpans.push(ends.concat(1.75));
+  }
+  garlands(field,festivalSpans);
+  const flakeCount=485, flakePositions=new Float32Array(flakeCount*3);
   for(let i=0;i<flakeCount;i++) {
     flakePositions[i*3]=(Math.random()-.5)*54;
     flakePositions[i*3+1]=Math.random()*23;
@@ -241,7 +292,7 @@ async function createSnowScene(T, host, catalog) {
   }
   const flakeGeo=new T.BufferGeometry();
   flakeGeo.setAttribute('position',new T.BufferAttribute(flakePositions,3));
-  const flakes=new T.Points(flakeGeo,new T.PointsMaterial({color:0xfff6e9,size:.076,transparent:true,opacity:.78,depthWrite:false}));
+  const flakes=new T.Points(flakeGeo,new T.PointsMaterial({color:0xfff6e9,size:.134,map:glowTexture,transparent:true,opacity:.88,depthWrite:false}));
   flakes.frustumCulled=false;scene.add(flakes);
   let layout=null,lastHidden=new Set(),lamps=[],byId=[];
   const buried=new T.Matrix4().makeScale(0,0,0);
@@ -343,12 +394,16 @@ async function createSnowScene(T, host, catalog) {
       piece(head,sphere,coal,x,.38,.905,.09,.106,.077);
       piece(head,sphere,snow,x-.027,.411,.979,.024);
     }
-    for(const x of [-.39,.39])piece(head,sphere,pink,x,.22,.896,.095,.043,.020);
+
     const nose=piece(head,cone,orange,0,.31,1.04,.117,.67,.117);
     nose.rotation.x=Math.PI/2;
-    piece(head,sphere,paint(0x743c40),0,.139,1.009,.143,.087,.047);
-    piece(head,sphere,paint(0xf08a88),.015,.104,1.045,.084,.034,.014);
-    for(const side of [-1,1]){const brow=piece(head,sphere,coal,side*.26,.55,.798,.09,.023,.028);brow.rotation.z=-side*.18;}
+    for(const side of [-1,1]){
+      const y=side<0?.558:.579;
+      const browCurve=new T.QuadraticBezierCurve3(new T.Vector3(side*.174,y,.824),
+        new T.Vector3(side*.244,y+.044,.818),new T.Vector3(side*.310,y+.008,.788));
+      piece(head,new T.TubeGeometry(browCurve,8,.019,7,false),coal,0,0,0);
+      for(const point of [browCurve.v0,browCurve.v2])piece(head,sphere,coal,point.x,point.y,point.z,.019);
+    }
     const shade=shadow(scene,1);
     return {root,roll,head,shade,frost,wear:null,gear:null,last:null,slot};
   });
@@ -381,12 +436,21 @@ async function createSnowScene(T, host, catalog) {
       mesh.visible=true;mesh.position.set(l.x,host.h-l.y,0);mesh.scale.set(l.w,l.h,1);}
     renderer.render(rankScene,rankCamera);
   }
-  const defaultItem={id:0,style:'scarf',color:'#bd4339',accent:'#f5d4a5'};
-  function equip(ball,id){
-    if(ball.gear===id)return;
-    if(ball.wear){ball.head.remove(ball.wear);ball.wear.userData.dispose();}
-    ball.wear=host.outfit(T,catalog.find(item=>item.id===id)||defaultItem,host.layer);
-    ball.gear=id;ball.head.add(ball.wear);
+  const byOutfitId=new Map(catalog.map(item=>[item.id,item]));
+  function equip(ball,look){
+    const ids=Array.isArray(look)?look:look?[look]:[];
+    const key=ids.join('/');
+    if(ball.gear===key)return;
+    if(!ball.wear)ball.wear=new Map();
+    for(const [id,group] of ball.wear){
+      if(!ids.includes(id)){ball.head.remove(group);group.userData.dispose();ball.wear.delete(id);}
+    }
+    for(const id of ids){
+      if(!byOutfitId.has(id)||ball.wear.has(id))continue;
+      const group=host.outfit(T,byOutfitId.get(id),host.layer);
+      ball.wear.set(id,group);ball.head.add(group);
+    }
+    ball.gear=key;
   }
   const axis=new T.Vector3(),camTarget=new T.Vector3(),normal=new T.Vector3(),travel=new T.Vector3(),planeNormal=new T.Vector3(0,0,1);
   const chipsCount=96,chipMesh=new T.InstancedMesh(cube,new T.MeshBasicMaterial({color:0xffffff}),chipsCount);
@@ -454,6 +518,7 @@ async function createSnowScene(T, host, catalog) {
     balls[0].frost.emissiveIntensity=state?0:.43;
     skyFill.groundColor.setHex(state?0x657190:0xffceaa);skyFill.intensity=state?1.34:1.78;
     elapsed+=dt;
+    for(const mat of garlandMats)mat.opacity=.88+.12*Math.sin(elapsed*1.6);
     backdrop.visible=ground.visible=!state;field.visible=!!state;
     scene.fog=state?nightFog:menuFog;
     renderer.toneMapping=T.ACESFilmicToneMapping;
@@ -485,8 +550,10 @@ async function createSnowScene(T, host, catalog) {
           if(distance>.00001){axis.crossVectors(normal,travel).normalize();b.roll.rotateOnWorldAxis(axis,distance/r);}
         }
         b.shade.quaternion.setFromUnitVectors(planeNormal,normal);
-        const tail=b.wear.userData.flutter;
-        if(tail)tail.rotation.x=-.18-.4*Math.min(speed/18,1)+Math.sin(elapsed*10)*speed*.003;
+        for(const group of b.wear.values()){
+          const tail=group.userData.flutter;
+          if(tail)tail.rotation.x=-.18-.4*Math.min(speed/18,1)+Math.sin(elapsed*10)*speed*.003;
+        }
         if(speed>1.2)powderTrail(pos,r,angle,speed,dt);
         b.shade.position.set(pos.x,pos.y-r+.035,pos.z);b.shade.scale.set(1.12*r,r,1);
         if(!b.last||Math.hypot(pos.x-b.last.x,pos.z-b.last.z)>.8*r){
@@ -506,7 +573,7 @@ async function createSnowScene(T, host, catalog) {
       b.root.visible=b.shade.visible=true;equip(b,view.itemId||0);
       b.root.scale.setScalar(2);b.root.position.set(0,1.99+.035*Math.sin(elapsed*2.5),29);
       b.roll.rotation.set(.035*Math.sin(elapsed*1.2),0,.035*Math.sin(elapsed*1.8));
-      b.head.rotation.y=.94+.12*Math.sin(elapsed*.85);
+      b.head.rotation.y=(shop?.32:.49)+.13*Math.sin(elapsed*.85);
       b.shade.rotation.set(-Math.PI/2,0,0);b.shade.position.set(0,.012,29);b.shade.scale.set(2.55,2.3,1);
       const offset=(shop?.636:.38)*(host.w/host.h)*4.0;
       camera.position.set(offset,3.05,shop?37.8:37.4);camera.lookAt(offset,shop?1.48:1.65,29);

@@ -76,6 +76,68 @@ function makeSnowOutfit(T, item, layer) {
       branch(side*.72,1.19,-.07,side*.58,1.43,.01,.06,accent);
       oval(accent,side*.83,1.42,-.10,.06,.075,.06);
     }
+  }else if(item.slot==='眼镜'){
+    const star=shape==='starSpecs', square=shape==='squareSpecs', wide=shape==='skiVisor'||shape==='snowGoggles';
+    const lens=material(wide?main:'#b1e9e9',.16);lens.transparent=true;lens.opacity=wide?.52:.24;lens.depthWrite=false;
+    for(const sign of [-1,1]){
+      const x=sign*.265,y=.37,z=.963;
+      const rim=mesh(new T.TorusGeometry(.183,wide?.041:.026,8,star?5:square?4:28),accent,x,y,z,wide?1.29:1,.88,.8);
+      if(square)rim.rotation.z=Math.PI/4;
+      oval(lens,x,y,z-.01,wide?.231:.173,.147,.021);
+      branch(x+sign*.17,y,z,sign*.83,.28,.45,.029,cloth);
+      if(shape==='jewelSpecs')for(let i=0;i<4;i++)oval(i%2?brass:accent,sign*(.49+i*.055),.30-.08*Math.sin(i*.8),.91-i*.08,.029,.039,.027);
+      if(star)oval(brass,x+.12,y+.13,z+.02,.035,.04,.02);
+    }
+    branch(-.087,.385,.976,.087,.385,.976,.026,brass);
+  }else if(item.slot==='手臂'){
+    for(const sign of [-1,1]){
+      const x=sign*1.24;
+      branch(sign*.82,-.08,.04,x,.15,.17,.06,shape==='crystalArms'?accent:cloth);
+      if(shape==='twigs'||shape==='crystalArms'){
+        for(let k=0;k<3;k++)branch(x,.14,.17,x+sign*(.12+k*.055),.43-k*.13,.19+k*.035,.038,k===1?accent:cloth);
+      }else if(shape==='candyArms'){
+        branch(x,.02,.16,x,.52,.16,.066,accent);
+        for(let k=0;k<3;k++)oval(cloth,x,.10+k*.14,.16,.069,.044,.069);
+        const hook=mesh(new T.TorusGeometry(.10,.057,8,16,Math.PI),accent,x+sign*.10,.50,.16);
+      }else{
+        oval(knit,x,.18,.16,.17,shape==='cuffs'?.13:.24,.14);
+        oval(accent,x-sign*.13,.20,.23,.084,.11,.08);
+        oval(shape==='bellMitts'?brass:accent,x,.01,.16,.15,.07,.135);
+      }
+    }
+  }else if(shape==='bellScarf'||shape==='ribbonScarf'||shape==='furCollar'){
+    ring(knit,-.20,.967,shape==='furCollar'?.13:.086);
+    for(let k=0;k<(shape==='furCollar'?16:3);k++){
+      const a=shape==='furCollar'?k*Math.PI/8:(k-1)*.27;
+      oval(shape==='bellScarf'?brass:accent,Math.sin(a)*.97,-.25,Math.cos(a)*.97,.11,.10,.09);
+    }
+    if(shape==='ribbonScarf')flutter=oval(knit,-.65,-.39,.70,.14,.35,.09);
+  }else if(['shortCape','mantle','ribbonCape'].includes(shape)){
+    const long=shape==='ribbonCape';
+    const drape=mesh(new T.ConeGeometry(1,1,32,1,true,Math.PI*.43,Math.PI*1.14),cloth,0,-.22,-.05,1.20,long?1.22:.84,1.17);
+    drape.material.side=T.DoubleSide;
+    for(const sign of [-1,1]){
+      const hem=oval(accent,sign*.83,-.17,-.55,.16,long?.59:.33,.16);hem.rotation.z=sign*.28;
+      if(shape==='mantle')oval(knit,sign*.65,.10,-.49,.36,.14,.26);
+    }
+  }else if(item.slot==='嘴部装饰'){
+    const x=.31,y=.02,z=.993;
+    branch(.09,.105,1,x,y,z+.035,.021,brass);
+    if(shape==='leafSprig'||shape==='iceRose'){
+      branch(x,y,z,x+.16,y+.15,z+.04,.014,cloth);
+      for(let k=0;k<(shape==='iceRose'?7:3);k++){
+        const a=k*2.4;const leaf=oval(k%2?accent:cloth,x+.11+.07*Math.cos(a),y+.11+.06*Math.sin(a),z+.045+k*.006,.063,.038,.03);leaf.rotation.z=a;
+      }
+    }else if(shape==='candyCane'){
+      branch(x,y,z,x+.14,y+.24,z,.035,accent);
+      for(let k=1;k<=3;k++)oval(cloth,x+k*.035,y+k*.06,z,.04,.03,.04);
+      mesh(new T.TorusGeometry(.063,.033,8,14,Math.PI),accent,x+.20,y+.24,z);
+    }else if(shape==='goldWhistle'){
+      oval(brass,x+.05,y,z,.13,.075,.063);oval(cloth,x+.07,y+.05,z+.049,.042,.021,.019);
+    }else{
+      oval(shape==='cookie'?cloth:accent,x+.07,y+.04,z+.04,.127,.126,.038);
+      for(let k=0;k<5;k++){const a=k*1.26;oval(shape==='cookie'?accent:cloth,x+.07+.069*Math.cos(a),y+.04+.069*Math.sin(a),z+.076,.022,.027,.009);}
+    }
   }else if(shape==='wings'){
     for(const side of [-1,1])for(let i=0;i<5;i++){
       const feather=oval(i%2?accent:cloth,side*(.62+i*.105),.04+i*.12,-.43,.15,.42-i*.029,.095);

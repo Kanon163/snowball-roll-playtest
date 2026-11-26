@@ -92,7 +92,7 @@ function localAccountSnapshot(store, day) {
   const tasks = LOCAL_DAILY_TASKS.map(task => localTaskStatus(task, 'daily', daily[task.id] || 0));
   for (const task of LOCAL_ROUND_TASKS) tasks.push(localTaskStatus(task, 'lifetime', store.rounds));
   tasks.push(localTaskStatus(LOCAL_ENDLESS_TASK, 'lifetime', store.bestEndless));
-  return {id: 1, balance: store.balance, owned: store.owned.slice(), equipped: store.equipped,
+  return {id: 1, balance: store.balance, owned: store.owned.slice(), equipped: store.equipped, loadout: {...store.loadout},
     total_rounds: store.rounds, tutorial_done: store.tutorialDone, best_peak_kg: store.bestPeak,
     sign_in: localSignState(store, day), tasks};
 }
@@ -149,7 +149,7 @@ function localDailyAwards(store, participation, props, day) {
 }
 
 function localItemId(item) {
-  if (!Number.isInteger(item) || item < 0 || item > 40) throw Error('invalid_item');
+  if (!Number.isInteger(item) || item < 0) throw Error('invalid_item');
   return item;
 }
 
@@ -170,11 +170,11 @@ function createLocalAccount({load, save, now = Date.now}, catalog = []) {
   const prices = new Map(catalog.filter(item => Number.isInteger(item.price) && item.price > 0)
     .map(item => [item.id, item.price]));
 
+  const slots = new Map(catalog.map(item => [item.id, item.slot || '帽子']));
   function read() {
     const stored = load();
-    if (stored == null || stored === '') return localAccountNewStore();
-    let state = stored;
-    if (typeof stored === 'string') {
+    let state = stored == null || stored === '' ? localAccountNewStore() : stored;
+    if (typeof state === 'string') {
       try { state = JSON.parse(stored); } catch (_) { throw Error('invalid_account'); }
     }
     if (!localAccountObject(state)) throw Error('invalid_account');
@@ -182,10 +182,18 @@ function createLocalAccount({load, save, now = Date.now}, catalog = []) {
       const signEntries = {};
       // 旧存档只记录累计次数和最后一次日期，最后一天从新连续周期的第 1 天开始。
       if (state.signCount > 0 && state.signDay) signEntries[state.signDay] = {streak: 1, base: 8};
-      return {...state, version: 2, signEntries, adClaims: {}};
+      state = {...state, version: 2, signEntries, adClaims: {}};
     }
     if (state.version !== 2) throw Error('invalid_account');
-    return state;
+    const loadout = {};
+    const starter=catalog.find(item=>item.starter);
+    const owned=state.owned.slice();
+    if(starter && !owned.includes(starter.id))owned.push(starter.id);
+    const previous = state.loadout ? Object.values(state.loadout) : [state.equipped || (starter && starter.id)];
+    for (const id of previous) {
+      if (slots.has(id) && owned.includes(id)) loadout[slots.get(id)] = id;
+    }
+    return {...state, owned, loadout};
   }
 
   function snapshot() {
@@ -257,15 +265,23 @@ function createLocalAccount({load, save, now = Date.now}, catalog = []) {
     return localAccountSnapshot(state, day);
   }
 
-  function equip(item) {
+  function equip(item, removeSlot) {
     const id = localItemId(item);
     const day = localBeijingDay(now());
     const state = localAccountCopy(read());
     if (!state.owned.includes(id)) throw Error('item_not_owned');
-    if (state.equipped !== id) {
-      state.equipped = id;
-      save(state);
+    const parts = {...state.loadout};
+    if (id) {
+      if (!slots.has(id)) throw Error('invalid_item');
+      parts[slots.get(id)] = id;
+    } else if (removeSlot) {
+      delete parts[removeSlot];
+    } else {
+      for (const slot of Object.keys(parts)) delete parts[slot];
     }
+    state.loadout = parts;
+    state.equipped = id || Object.values(parts)[0] || 0;
+    save(state);
     return localAccountSnapshot(state, day);
   }
 

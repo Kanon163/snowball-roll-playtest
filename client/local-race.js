@@ -200,6 +200,8 @@ var createSnowRace = (() => {
       let target = null, best = Infinity;
       for (const rival of balls) {
         if (ball === rival || rival.immune > 0 || ball.mass <= CRUSH_RATIO * rival.mass) continue;
+        // 战局模型按半径显示体型。碰撞规则与主动选敌分别判断。
+        if (rival.slot === 0 && ball.radius <= rival.radius * 1.20 + 1e-9) continue;
         const distance = (ball.x - rival.x) ** 2 + (ball.z - rival.z) ** 2;
         if (distance > PURSUIT_RADIUS ** 2) continue;
         const score = distance / Math.min(1.7, ball.mass / rival.mass);

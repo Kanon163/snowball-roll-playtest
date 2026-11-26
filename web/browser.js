@@ -1,7 +1,7 @@
 const screenEl=document.querySelector('canvas'), loadEl=document.querySelector('#load');
 const stage=document.querySelector('#stage');
 const assetRoot=new URL('../client/',document.currentScript.src);
-const asset=path=>new URL(path,assetRoot).href;
+const asset=path=>new URL(path+'?v=yuletide4',assetRoot).href;
 let audioCtx=null;
 function context(){
   const C=window.AudioContext||window.webkitAudioContext;
@@ -9,7 +9,7 @@ function context(){
   return audioCtx;
 }
 const host={
-  previewRewards:true,preparePack:()=>Promise.resolve(),guide:createSnowGuide(),makeAudio:createSnowSoundscape,
+  progress:window.snowBoot,previewRewards:true,preparePack:()=>Promise.resolve(),guide:createSnowGuide(),makeAudio:createSnowSoundscape,
   pref:{get:k=>JSON.parse(localStorage.getItem('snow-'+k)||'null'),set:(k,v)=>localStorage.setItem('snow-'+k,JSON.stringify(v))},
   async loadTypeface(){
     const f=new FontFace('SnowDisplay','url("'+asset('art/snow-display.ttf')+'")');
